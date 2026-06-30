@@ -1076,6 +1076,7 @@
     <span class="user-email" id="user-email-label"></span>
     <button id="logout-btn" onclick="handleLogout()">Sign Out</button>
   </div>
+  <button id="import-batch-btn" onclick="importPdfBatch()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch (3)</button>
   <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
 </div>
 
@@ -2656,6 +2657,180 @@ async function seedProjectsIfEmpty() {
 // INIT — only runs after successful authentication
 // (called from auth.onAuthStateChanged once user is confirmed)
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// IMPORT BATCH — extracted from ICS Master Project Tracker
+// PDFs (Victoria ES, Troy HS, Chaffey College) on 06/30/2026.
+// This is ADDITIVE ONLY — importPdfBatch() checks for existing
+// ids/names before writing anything, so it will never duplicate
+// or overwrite data already in Firestore/localStorage, no matter
+// how many times the button is clicked.
+// ════════════════════════════════════════════════════════
+const IMPORT_BATCH_PROJECTS = [
+  {
+    id: 'import-victoria-es-fa-20260630',
+    name: 'Victoria Elementary School Campus-Wide Fire Alarm Upgrade',
+    contractor: 'Giannelli Electric',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '1025 Victoria Street, Costa Mesa, CA 92627',
+    district: 'NMUSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    scope: 'Per Plans - Fire Detection & Alarm System',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'victoria-t1', text: 'Request for CADS — Fire Alarm — Received — Aaron — HIGH', done: false },
+      { id: 'victoria-t2', text: 'Shop Drawings — Fire Alarm — In Progress — Aaron — MEDIUM', done: false },
+      { id: 'victoria-t3', text: 'Submittal Booklet — Fire Alarm — Complete — Aaron — LOW', done: true },
+      { id: 'victoria-t4', text: 'Submittal Booklet — Fire Alarm — In Progress — Aaron — MEDIUM (Need to resubmit fire with a 6820EVS control unit)', done: false },
+    ],
+    submittals: [
+      { id: 'victoria-s1', type: 'Submittal Booklet', system: 'Fire Alarm', submittalDate: '2026-03-19', status: 'Submitted', approvedDate: '', notes: 'Submitted on Silent Knight for approval' },
+    ],
+    notes: [
+      { id: 'victoria-n1', ts: '03/18/2026 [Imported]', text: 'New Awarded Project. FA Submittals due before 3/31/2026' },
+      { id: 'victoria-n2', ts: '03/19/2026 [Imported]', text: 'Completed Fire Alarm Submittal booklet and sent to Carolyn and Alan Usui' },
+      { id: 'victoria-n3', ts: '03/24/2026 [Imported]', text: 'Sent Request for CAD files to Carolyn at Giannelli Electric' },
+      { id: 'victoria-n4', ts: '04/06/2026 [Imported]', text: 'Received CAD release form. Sent back signed. No cost' },
+      { id: 'victoria-n5', ts: '04/16/2026 [Imported]', text: 'Need to resubmit fire with a 6820EVS control unit' },
+      { id: 'victoria-n6', ts: '04/17/2026 [Imported]', text: 'Set up sheet set for shop drawings' },
+      { id: 'victoria-n7', ts: '04/21/2026 [Imported]', text: 'Received CAD Files. Reviewing for all CAD files needed' },
+      { id: 'victoria-n8', ts: '05/19/2026 [Imported]', text: 'Received updated CCD-001 CAD Files' },
+      { id: 'victoria-n9', ts: '06/05/2026 [Imported]', text: 'Working on Fire Alarm Shop Drawings' },
+      { id: 'victoria-n10', ts: '06/12/2026 [Imported]', text: 'Working on Fire Alarm Shop Drawings' },
+    ]
+  },
+  {
+    id: 'import-troy-hs-portables-20260630',
+    name: 'Troy HS Interim Portables',
+    contractor: 'Rancho Pacific Electric',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '2200 Dorothy Ln., Fullerton, CA 92831',
+    district: 'FJUHSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    scope: '27 00 00 — Structured Cabling System\n28 16 00 — Intrusion Detection System\n28 46 00 — Fire Detection & Alarm System\nPer Plan — Assistive Listening',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'troy-t1', text: 'Request CAD Files — Fire Alarm — Complete — Aaron — MEDIUM (Due 4/30/2026)', done: true },
+      { id: 'troy-t2', text: 'Request CAD Files — Structured Cabling — Complete — Aaron — MEDIUM (Due 4/30/2026)', done: true },
+      { id: 'troy-t3', text: 'Request CAD Files — Intrusion Detection — Complete — Aaron — MEDIUM (Due 4/30/2026)', done: true },
+      { id: 'troy-t4', text: 'Request CAD Files — Assistive Listening — Complete — Aaron — MEDIUM (Due 4/30/2026)', done: true },
+      { id: 'troy-t5', text: 'Submittal Booklet — Fire Alarm — Submitted — Jenn — MEDIUM (Due 5/21/2026, sent 5/21/26)', done: false },
+      { id: 'troy-t6', text: 'Submittal Booklet — Intrusion Detection — Complete — Jenn — MEDIUM (Due 5/21/2026, sent 5/21/26)', done: true },
+      { id: 'troy-t7', text: 'Submittal Booklet — Structured Cabling — Submitted — Jenn — MEDIUM (Due 5/21/2026, sent 5/21/26)', done: false },
+      { id: 'troy-t8', text: 'Submittal Booklet — Assistive Listening — Complete — Jenn — MEDIUM (Due 5/21/2026, sent 5/21/26)', done: true },
+      { id: 'troy-t9', text: 'Submittal Booklet — Structured Cabling — Submitted — Aaron — HIGH (Due 6/3/2026, Rejected 6/1/26, Resubmitted 6/1/26)', done: false },
+      { id: 'troy-t10', text: 'Submittal Drawings — Fire Alarm — Submitted — Aaron — HIGH (Due 6/3/2026, sent 6/3/26)', done: false },
+    ],
+    submittals: [
+      { id: 'troy-s1', type: 'Product Data', system: 'Fire Alarm', submittalDate: '2026-05-21', status: 'Approved', approvedDate: '2026-06-08', notes: 'No exceptions taken' },
+      { id: 'troy-s2', type: 'Product Data', system: 'Intrusion Detection', submittalDate: '2026-05-21', status: 'Approved', approvedDate: '2026-06-03', notes: 'No exceptions taken' },
+      { id: 'troy-s3', type: 'Product Data', system: 'Assistive Listening', submittalDate: '2026-05-21', status: 'Approved', approvedDate: '2026-06-03', notes: 'Furnish as Corrected' },
+      { id: 'troy-s4', type: 'Product Data', system: 'Structured Cabling', submittalDate: '2026-05-21', status: 'Approved', approvedDate: '2026-06-01', notes: 'No exceptions taken (additional date noted on source sheet: 6/8/26 — verify)' },
+      { id: 'troy-s5', type: 'Submittal Drawings', system: 'Structured Cabling', submittalDate: '2026-06-10', status: 'Submitted', approvedDate: '', notes: '' },
+      { id: 'troy-s6', type: 'Submittal Drawings', system: 'Intrusion Detection', submittalDate: '2026-06-10', status: 'Submitted', approvedDate: '', notes: '' },
+      { id: 'troy-s7', type: 'Submittal Drawings', system: 'Fire Alarm', submittalDate: '2026-06-03', status: 'Submitted', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'troy-n1', ts: '04/28/2026 [Imported]', text: 'Reviewed Fire alarm drawings, Printed Office Set' },
+      { id: 'troy-n2', ts: '04/28/2026 [Imported]', text: 'Reviewing specifications for Intrusion and Structured cabling. Requesting CAD files' },
+      { id: 'troy-n3', ts: '04/28/2026 [Imported]', text: 'CAD Request has been emailed' },
+      { id: 'troy-n4', ts: '04/29/2026 [Imported]', text: 'Received Digital Data Request form from Rancho Pacific Electric' },
+      { id: 'troy-n5', ts: '04/30/2026 [Imported]', text: 'Signed and returned Digital Data Request form and RFI-02 to Rancho Pacific Electric' },
+      { id: 'troy-n6', ts: '05/14/2026 [Imported]', text: 'Received RFI 010 Breaker and Fuse Size clarification (no impact on low voltage)' },
+      { id: 'troy-n7', ts: '05/14/2026 [Imported]', text: 'Received CAD Files link. Downloaded in Project folder and CAD drawings folder' },
+      { id: 'troy-n8', ts: '05/21/2026 [Imported]', text: 'Received CCD 001A changes to plans. Updated T1.10 to Bid Set' },
+      { id: 'troy-n9', ts: '05/29/2026 [Imported]', text: 'Received email for Intrusion Detection submittal to send an RFI to confirm district standard. Nothing needed to do' },
+      { id: 'troy-n10', ts: '06/03/2026 [Imported]', text: 'Sent Fire Alarm submittal drawings out for approval' },
+      { id: 'troy-n11', ts: '06/04/2026 [Imported]', text: 'Added District mark-up plans to office bid set' },
+      { id: 'troy-n12', ts: '06/09/2026 [Imported]', text: 'Structured cabling requires data certification for extended warranty' },
+      { id: 'troy-n13', ts: '06/10/2026 [Imported]', text: 'Troy Intrusion and Structured cabling submitted' },
+      { id: 'troy-n14', ts: '06/16/2026 [Imported]', text: 'RFI-07 HDMI locations confirmation request sent for clarification' },
+      { id: 'troy-n15', ts: '06/23/2026 [Imported]', text: 'Sent follow up email to Pius for an update' },
+    ]
+  },
+  {
+    id: 'import-chaffey-library-swing-20260630',
+    name: 'Chaffey Community College - Library Swing Space',
+    contractor: 'Spec Construction',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '5885 Haven Avenue, Rancho Cucamonga, CA 91737',
+    district: 'Chaffey College',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    scope: 'Div 27; Communication',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'chaffey-t1', text: 'Request for CADs — Fire Alarm — Submitted — Aaron — MEDIUM', done: false },
+      { id: 'chaffey-t2', text: 'Request for CADs — Technology — Submitted — Aaron — MEDIUM', done: false },
+    ],
+    submittals: [
+      { id: 'chaffey-s1', type: 'CAD Request', system: 'Fire Alarm', submittalDate: '', status: 'Submitted', approvedDate: '', notes: '' },
+      { id: 'chaffey-s2', type: 'CAD Request', system: 'Technology', submittalDate: '', status: 'Submitted', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'chaffey-n1', ts: '06/26/2026 [Imported]', text: 'Requested CAD Files' },
+    ]
+  }
+];
+
+const IMPORT_BATCH_CONTRACTORS = [
+  { id: 'import-con-giannelli', name: 'Giannelli Electric', address: '', phone: '', email: '', logo: null },
+  { id: 'import-con-rancho-pacific', name: 'Rancho Pacific Electric', address: '', phone: '', email: '', logo: null },
+  { id: 'import-con-spec-construction', name: 'Spec Construction', address: '', phone: '', email: '', logo: null },
+];
+
+async function importPdfBatch() {
+  const existingProjectIds  = new Set(projects.map(p => p.id));
+  const existingProjectNames = new Set(projects.map(p => (p.name||'').trim().toLowerCase()));
+  const existingConNames    = new Set(contractors.map(c => (c.name||'').trim().toLowerCase()));
+
+  const newProjects    = IMPORT_BATCH_PROJECTS.filter(p =>
+    !existingProjectIds.has(p.id) && !existingProjectNames.has(p.name.trim().toLowerCase()));
+  const skippedProjects = IMPORT_BATCH_PROJECTS.filter(p => !newProjects.includes(p));
+
+  const newContractors = IMPORT_BATCH_CONTRACTORS.filter(c => !existingConNames.has(c.name.trim().toLowerCase()));
+  const skippedCons     = IMPORT_BATCH_CONTRACTORS.filter(c => !newContractors.includes(c));
+
+  if (newProjects.length === 0 && newContractors.length === 0) {
+    alert('Nothing to import — all 3 projects and contractors from this batch already exist in your CRM.\n\nNo data was changed.');
+    return;
+  }
+
+  let msg = `Import PDF Batch (06/30/2026)\n\nWill ADD:\n`;
+  msg += newProjects.length ? `• ${newProjects.length} project(s): ${newProjects.map(p=>p.name).join(', ')}\n` : '• 0 new projects\n';
+  msg += newContractors.length ? `• ${newContractors.length} contractor(s): ${newContractors.map(c=>c.name).join(', ')}\n` : '• 0 new contractors\n';
+  if (skippedProjects.length) msg += `\nSkipping (already exist): ${skippedProjects.map(p=>p.name).join(', ')}\n`;
+  if (skippedCons.length) msg += `Skipping contractor (already exists): ${skippedCons.map(c=>c.name).join(', ')}\n`;
+  msg += `\nThis only ADDS data — nothing existing will be modified or removed. Proceed?`;
+
+  if (!confirm(msg)) return;
+
+  try {
+    const batch = db.batch();
+    newProjects.forEach(p => batch.set(db.collection(FS_PROJECTS).doc(p.id), p));
+    newContractors.forEach(c => batch.set(db.collection(FS_CONTRACTORS).doc(c.id), c));
+    await batch.commit();
+  } catch(e) {
+    console.warn('ICS CRM: importPdfBatch Firestore write failed, saving locally only.', e);
+  }
+
+  projects.push(...newProjects);
+  contractors.push(...newContractors);
+  persistLocal();
+  renderGrid();
+  renderRolodex();
+  renderOverdueBanner();
+
+  alert(`Import complete.\nAdded ${newProjects.length} project(s) and ${newContractors.length} contractor(s).`);
+}
+
 async function initializeCRMData() {
   loadLocal();            // Paint UI immediately from local cache
   renderGrid();           // Show locally cached data right away
