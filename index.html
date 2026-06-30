@@ -1,0 +1,2670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICS Service CRM</title>
+
+<!-- ─── FIREBASE SDK (CDN compat build) ─── -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+
+<style>
+  :root {
+    --ics-red: #E50914;
+    --ics-red-dark: #b3070f;
+    --black: #0A0A0A;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --surface3: #242424;
+    --border: #2e2e2e;
+    --text: #E0E0E0;
+    --text-dim: #888;
+    --text-muted: #555;
+    --green: #22c55e;
+    --yellow: #facc15;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ─── TOP NAV ─── */
+  #topnav {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 20px;
+    background: #0d0d0d;
+    border-bottom: 2px solid var(--ics-red);
+    position: sticky; top: 0; z-index: 100;
+  }
+  #topnav .logo { display: flex; align-items: center; gap: 10px; }
+  .diamond-logo {
+    width: 36px; height: 36px;
+    background: var(--ics-red);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 11px; color: white;
+    flex-shrink: 0;
+  }
+  #topnav h1 { font-size: 16px; font-weight: 700; letter-spacing: 2px; color: var(--text); }
+  #topnav h1 span { color: var(--ics-red); }
+  .nav-tabs { display: flex; gap: 4px; margin-left: auto; }
+  .nav-tab {
+    padding: 6px 18px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12px; font-weight: 600; letter-spacing: 1px;
+    cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+  }
+  .nav-tab:hover { border-color: var(--ics-red); color: var(--text); }
+  .nav-tab.active { background: var(--ics-red); border-color: var(--ics-red); color: white; }
+  #add-project-btn {
+    padding: 6px 16px; background: transparent;
+    border: 1px solid var(--ics-red); color: var(--ics-red);
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+  }
+  #add-project-btn:hover { background: var(--ics-red); color: white; }
+
+  /* ─── SYNC STATUS INDICATOR ─── */
+  #sync-indicator {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; letter-spacing: 1px; color: var(--text-muted);
+    padding: 0 4px;
+  }
+  #sync-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #555; flex-shrink: 0; transition: background 0.3s;
+  }
+  #sync-dot.synced  { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  #sync-dot.syncing { background: var(--yellow); box-shadow: 0 0 5px var(--yellow); animation: pulse 1s infinite; }
+  #sync-dot.error   { background: var(--ics-red); box-shadow: 0 0 5px var(--ics-red); }
+
+  /* ─── MAIN LAYOUT ─── */
+  #app { padding: 20px; }
+  .section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 3px;
+    color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;
+  }
+  .section-title {
+    font-size: 18px; font-weight: 800; letter-spacing: 1px;
+    color: var(--text); margin-bottom: 16px;
+  }
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 32px;
+  }
+  .box-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; cursor: pointer;
+    transition: all 0.15s; overflow: hidden; position: relative;
+  }
+  .box-card:hover {
+    border-color: var(--ics-red); transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(229,9,20,0.2);
+  }
+  .box-card-top {
+    background: var(--surface3); padding: 10px;
+    display: flex; align-items: center; justify-content: center;
+    height: 80px; position: relative;
+  }
+  .box-icon {
+    width: 54px; height: 54px;
+    background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+    border: 2px solid #333; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .box-led {
+    width: 8px; height: 8px; background: var(--ics-red);
+    border-radius: 50%; position: absolute; top: 6px; right: 6px;
+    box-shadow: 0 0 6px var(--ics-red);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .box-led.archived { background: #444; box-shadow: none; animation: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .box-diamond {
+    width: 28px; height: 28px; background: var(--ics-red);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px; font-weight: 900; color: white;
+  }
+  .box-card-body { padding: 10px; text-align: center; }
+  .box-card-body .proj-name {
+    font-weight: 700; font-size: 12px; color: var(--text);
+    line-height: 1.3; margin-bottom: 3px;
+  }
+  .box-card-body .proj-sub { font-size: 10px; color: var(--text-dim); line-height: 1.4; }
+  .overdue-badge {
+    position: absolute; top: 6px; left: 6px;
+    background: var(--ics-red); color: white;
+    font-size: 8px; font-weight: 700; padding: 2px 5px; letter-spacing: 1px;
+  }
+
+  /* ─── JOB CARD MODAL ─── */
+  #modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 200;
+    overflow-y: auto; padding: 20px;
+  }
+  #modal-overlay.open { display: flex; align-items: flex-start; justify-content: center; }
+  #job-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--ics-red);
+    width: 100%; max-width: 1140px; border-radius: 4px; overflow: hidden; margin: auto;
+  }
+  .jc-header {
+    background: var(--ics-red); padding: 10px 16px;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+  .jc-header-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 3px;
+    color: rgba(255,255,255,0.6); text-transform: uppercase;
+    justify-self: start;
+  }
+  .jc-project-title {
+    font-size: 15px; font-weight: 800; letter-spacing: 1.5px;
+    color: white; text-align: center; justify-self: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 520px;
+  }
+  #close-modal { background: none; border: none; color: white; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; justify-self: end; }
+  #close-modal:hover { color: #faa; }
+  .jc-body { display: grid; grid-template-columns: 270px 1fr; gap: 0; }
+
+  /* Sidebar */
+  .jc-sidebar { background: var(--surface2); border-right: 1px solid var(--border); padding: 16px; }
+  .field-group { margin-bottom: 14px; }
+  .field-group label {
+    display: block; font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: var(--ics-red); text-transform: uppercase; margin-bottom: 5px;
+  }
+  .field-group input, .field-group textarea, .field-group select {
+    width: 100%; background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 8px; font-size: 12px;
+    font-family: inherit; outline: none; transition: border-color 0.15s; border-radius: 2px;
+  }
+  .field-group input:focus, .field-group textarea:focus, .field-group select:focus { border-color: var(--ics-red); }
+  .field-group textarea { resize: vertical; min-height: 60px; }
+  .sidebar-section-title {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: var(--text-muted); text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px; margin-bottom: 10px; margin-top: 16px;
+  }
+
+  /* Main body */
+  .jc-main { padding: 16px; }
+  .section-block { margin-bottom: 20px; }
+  .section-block-title {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: var(--text-muted); text-transform: uppercase;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px;
+  }
+
+  /* What's Next */
+  .task-list { list-style: none; }
+  .task-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 7px 10px; background: var(--surface2);
+    border: 1px solid var(--border); margin-bottom: 4px; border-radius: 2px;
+  }
+  .task-item:first-child { background: #1a0a0a; border-color: var(--ics-red); }
+  .task-item input[type="checkbox"] { margin-top: 2px; accent-color: var(--ics-red); flex-shrink: 0; }
+  .task-item .task-text { flex: 1; font-size: 12px; line-height: 1.4; }
+  .task-item.overdue .task-text { color: var(--ics-red); font-weight: 700; }
+  .task-item .task-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
+  .task-del:hover { color: var(--ics-red); }
+  .add-task-row { display: flex; gap: 6px; margin-top: 8px; }
+  .add-task-row input {
+    flex: 1; background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none; border-radius: 2px;
+  }
+  .add-task-row input:focus { border-color: var(--ics-red); }
+  .add-task-row button {
+    padding: 6px 12px; background: var(--ics-red); border: none;
+    color: white; font-size: 11px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px; border-radius: 2px;
+  }
+  .add-task-row button:hover { background: var(--ics-red-dark); }
+
+  /* Submittals Table */
+  .submittal-table { width: 100%; border-collapse: collapse; }
+  .submittal-table th {
+    background: #1a1a1a; padding: 7px 10px; text-align: left;
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid var(--border);
+  }
+  .submittal-table td {
+    padding: 6px 8px; border-bottom: 1px solid var(--border);
+    font-size: 12px; vertical-align: middle;
+  }
+  .submittal-table tr:hover td { background: var(--surface2); }
+  .submittal-table td input, .submittal-table td select {
+    background: transparent; border: none; color: var(--text);
+    font-size: 12px; font-family: inherit; width: 100%; outline: none; padding: 2px 4px;
+  }
+  .submittal-table td input:focus, .submittal-table td select:focus { background: var(--surface3); border-radius: 2px; }
+  .status-badge {
+    display: inline-block; padding: 2px 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    border-radius: 2px; text-transform: uppercase;
+  }
+  .status-approved    { background: rgba(34,197,94,0.15);  color: #22c55e; }
+  .status-pending     { background: rgba(250,204,21,0.12);  color: #facc15; }
+  .status-overdue     { background: rgba(229,9,20,0.18);    color: var(--ics-red); }
+  .status-revise      { background: rgba(249,115,22,0.15);  color: #f97316; }
+  .status-design      { background: rgba(96,165,250,0.15);  color: #60a5fa; }
+  .status-internal    { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .status-submitted   { background: rgba(34,211,238,0.15);  color: #22d3ee; }
+  .status-corrections { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+  .add-sub-btn {
+    margin-top: 8px; padding: 5px 12px;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; cursor: pointer; border-radius: 2px; transition: all 0.15s;
+  }
+  .add-sub-btn:hover { border-color: var(--ics-red); color: var(--text); }
+
+  /* General Notes */
+  .notes-log { max-height: 220px; overflow-y: auto; margin-bottom: 8px; }
+  .note-entry {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-left: 3px solid var(--border); padding: 8px 10px;
+    margin-bottom: 6px; border-radius: 0 2px 2px 0;
+  }
+  .note-entry:first-child { border-left-color: var(--ics-red); }
+  .note-ts { font-size: 9px; color: var(--text-dim); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+  .note-text { font-size: 12px; line-height: 1.5; }
+  .note-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
+  .note-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; }
+  .note-del:hover { color: var(--ics-red); }
+  .add-note-row { display: flex; flex-direction: column; gap: 6px; }
+  .add-note-date-row { display: flex; align-items: center; gap: 10px; }
+  .add-note-date-row label {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: var(--ics-red); text-transform: uppercase; white-space: nowrap;
+  }
+  .add-note-date-row input[type="date"] {
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 8px; font-size: 12px;
+    font-family: inherit; outline: none; border-radius: 2px; transition: border-color 0.15s;
+  }
+  .add-note-date-row input[type="date"]:focus { border-color: var(--ics-red); }
+  .add-note-date-row .date-hint { font-size: 10px; color: var(--text-muted); font-style: italic; }
+  .add-note-row textarea {
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 8px; font-size: 12px;
+    font-family: inherit; outline: none; resize: vertical; min-height: 56px; border-radius: 2px;
+  }
+  .add-note-row textarea:focus { border-color: var(--ics-red); }
+  .add-note-row button {
+    align-self: flex-end; padding: 6px 14px;
+    background: var(--ics-red); border: none;
+    color: white; font-size: 11px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px; border-radius: 2px;
+  }
+  .add-note-row button:hover { background: var(--ics-red-dark); }
+
+  /* Save bar */
+  .jc-save-bar {
+    padding: 12px 16px; background: #0d0d0d;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  }
+  .jc-save-bar .status-msg { flex: 1; font-size: 11px; color: var(--green); }
+  .btn-archive {
+    padding: 7px 16px; background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase;
+  }
+  .btn-archive:hover { border-color: #555; color: var(--text); }
+  .btn-save {
+    padding: 7px 20px; background: var(--ics-red); border: none;
+    color: white; font-size: 11px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase;
+  }
+  .btn-save:hover { background: var(--ics-red-dark); }
+  .btn-report {
+    padding: 7px 16px; background: transparent;
+    border: 1px solid var(--ics-red); color: var(--ics-red);
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    letter-spacing: 1px; border-radius: 2px; text-transform: uppercase;
+  }
+  .btn-report:hover { background: var(--ics-red); color: white; }
+
+  /* Add Project Modal */
+  #new-project-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.9); z-index: 300;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  #new-project-overlay.open { display: flex; }
+  #new-project-form {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--ics-red);
+    width: 100%; max-width: 480px; border-radius: 4px; overflow: hidden;
+  }
+  .npf-header {
+    background: var(--surface2); padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .npf-header h3 { font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text); }
+  #close-npf { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+  #close-npf:hover { color: var(--ics-red); }
+  .npf-body { padding: 16px; }
+  .npf-footer {
+    padding: 12px 16px; background: #0d0d0d;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  /* ─── REPORT MODAL ─── */
+  #report-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.92); z-index: 400;
+    overflow-y: auto; padding: 20px;
+  }
+  #report-overlay.open { display: flex; align-items: flex-start; justify-content: center; }
+  #report-container {
+    background: white; color: #111;
+    width: 100%; max-width: 780px;
+    margin: auto;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 12px;
+  }
+  .rpt-header-band {
+    background: #E50914; padding: 14px 28px 10px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .rpt-header-band .rpt-logo-group { display: flex; align-items: center; gap: 10px; }
+  .rpt-diamond {
+    width: 32px; height: 32px; background: white;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7px; font-weight: 900; color: #E50914; flex-shrink: 0;
+  }
+  .rpt-header-band h1 { font-size: 15px; font-weight: 900; letter-spacing: 3px; color: white; text-transform: uppercase; }
+  .rpt-header-band h1 span { opacity: 0.75; font-weight: 400; }
+  .rpt-header-meta { text-align: right; color: rgba(255,255,255,0.85); font-size: 10px; line-height: 1.6; }
+  .rpt-subheader {
+    background: #1a1a1a; color: white; padding: 8px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .rpt-project-title { font-size: 14px; font-weight: 800; letter-spacing: 1px; }
+  .rpt-project-meta { font-size: 10px; color: #aaa; letter-spacing: 0.5px; }
+  .rpt-body { padding: 20px 28px; }
+  .rpt-info-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 1px solid #ddd; margin-bottom: 20px; }
+  .rpt-info-cell { padding: 8px 12px; border-right: 1px solid #ddd; }
+  .rpt-info-cell:last-child { border-right: none; }
+  .rpt-info-label { font-size: 8px; font-weight: 700; letter-spacing: 2px; color: #E50914; text-transform: uppercase; margin-bottom: 3px; }
+  .rpt-info-value { font-size: 11px; font-weight: 600; color: #111; line-height: 1.4; }
+  .rpt-scope-strip { background: #f7f7f7; border: 1px solid #ddd; border-top: none; padding: 8px 12px; margin-bottom: 20px; }
+  .rpt-scope-strip .rpt-info-label { margin-bottom: 4px; }
+  .rpt-scope-value { font-size: 11px; color: #222; white-space: pre-wrap; line-height: 1.6; }
+  .rpt-section-header {
+    background: #1a1a1a; color: white; padding: 6px 12px;
+    font-size: 9px; font-weight: 700; letter-spacing: 2.5px;
+    text-transform: uppercase; margin-bottom: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rpt-section-header .rpt-dot { width: 6px; height: 6px; background: #E50914; border-radius: 50%; flex-shrink: 0; }
+  .rpt-table { width: 100%; border-collapse: collapse; border: 1px solid #ddd; border-top: none; margin-bottom: 20px; }
+  .rpt-table th {
+    background: #f2f2f2; padding: 7px 12px; text-align: left;
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    color: #444; text-transform: uppercase;
+    border-bottom: 1px solid #ddd; border-right: 1px solid #ddd;
+  }
+  .rpt-table th:last-child { border-right: none; }
+  .rpt-table td { padding: 7px 12px; border-bottom: 1px solid #eee; border-right: 1px solid #eee; font-size: 11px; vertical-align: middle; }
+  .rpt-table td:last-child { border-right: none; }
+  .rpt-table tr:last-child td { border-bottom: none; }
+  .rpt-status { display: inline-block; padding: 2px 8px; font-size: 9px; font-weight: 700; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; }
+  .rpt-status-approved    { background: #dcfce7; color: #16a34a; }
+  .rpt-status-pending     { background: #fef9c3; color: #a16207; }
+  .rpt-status-overdue     { background: #fee2e2; color: #E50914; }
+  .rpt-status-revise      { background: #ffedd5; color: #c2410c; }
+  .rpt-status-design      { background: #dbeafe; color: #1d4ed8; }
+  .rpt-status-internal    { background: #ede9fe; color: #6d28d9; }
+  .rpt-status-submitted   { background: #cffafe; color: #0e7490; }
+  .rpt-status-corrections { background: #fef3c7; color: #92400e; }
+  .rpt-task-list { border: 1px solid #ddd; border-top: none; margin-bottom: 20px; }
+  .rpt-task-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 12px; border-bottom: 1px solid #eee; font-size: 11px; }
+  .rpt-task-row:last-child { border-bottom: none; }
+  .rpt-task-row.rpt-overdue { background: #fff5f5; }
+  .rpt-task-bullet { width: 16px; height: 16px; border: 2px solid #ccc; border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+  .rpt-task-bullet.overdue { border-color: #E50914; background: #fee2e2; }
+  .rpt-task-text { flex: 1; line-height: 1.4; }
+  .rpt-task-text.overdue { color: #E50914; font-weight: 700; }
+  .rpt-notes-list { border: 1px solid #ddd; border-top: none; margin-bottom: 20px; }
+  .rpt-note-row { padding: 8px 12px; border-bottom: 1px solid #eee; }
+  .rpt-note-row:last-child { border-bottom: none; }
+  .rpt-note-ts { font-size: 9px; color: #E50914; font-weight: 700; letter-spacing: 1px; margin-bottom: 3px; }
+  .rpt-note-text { font-size: 11px; color: #222; line-height: 1.5; }
+  .rpt-footer-band {
+    background: #1a1a1a; color: #888; padding: 8px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 9px; letter-spacing: 1px;
+  }
+  .rpt-footer-band strong { color: #E50914; }
+  .rpt-action-bar {
+    background: #0d0d0d; padding: 12px 28px;
+    display: flex; gap: 8px; justify-content: flex-end;
+    border-top: 2px solid #E50914;
+  }
+  .rpt-close-btn { padding: 7px 16px; background: transparent; border: 1px solid #444; color: #888; font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+  .rpt-close-btn:hover { border-color: #888; color: #ccc; }
+  .rpt-print-btn { padding: 7px 20px; background: #E50914; border: none; color: white; font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+  .rpt-print-btn:hover { background: #b3070f; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #111; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--ics-red); }
+
+  .empty-state { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 12px; letter-spacing: 1px; }
+
+  /* ─── PROJECT SEARCH BAR ─── */
+  .project-search-wrap {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .project-search-input {
+    flex: 1; max-width: 380px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 36px 8px 12px;
+    font-size: 12px; font-family: inherit; outline: none;
+    border-radius: 3px; transition: border-color 0.15s;
+  }
+  .project-search-input:focus { border-color: var(--ics-red); }
+  .project-search-wrap { position: relative; }
+  .project-search-icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted); font-size: 13px; pointer-events: none;
+  }
+  .project-search-input { padding-left: 34px; }
+  .project-search-clear {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; line-height: 1;
+    display: none;
+  }
+  .project-search-clear.visible { display: block; }
+  .project-search-clear:hover { color: var(--ics-red); }
+  .search-result-count {
+    font-size: 10px; color: var(--text-muted);
+    letter-spacing: 1px; white-space: nowrap;
+  }
+  .search-result-count span { color: var(--ics-red); font-weight: 700; }
+  .flag-overdue { color: var(--ics-red) !important; font-weight: 700; }
+
+  /* ─── NOTE POPUP ─── */
+  #note-popup-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.80); z-index: 500;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  #note-popup-overlay.open { display: flex; }
+  #note-popup {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--ics-red);
+    width: 100%; max-width: 560px; border-radius: 4px; overflow: hidden;
+  }
+  .np-header {
+    background: var(--surface2); padding: 10px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .np-header .np-ts { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--ics-red); text-transform: uppercase; }
+  .np-header .np-title { font-size: 12px; font-weight: 700; color: var(--text); }
+  #note-popup-close { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; line-height: 1; }
+  #note-popup-close:hover { color: var(--ics-red); }
+  .np-body { padding: 14px 16px; }
+  #note-popup-textarea {
+    width: 100%; min-height: 160px;
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 10px; font-size: 13px;
+    font-family: inherit; outline: none; resize: vertical;
+    border-radius: 2px; line-height: 1.6;
+  }
+  #note-popup-textarea:focus { border-color: var(--ics-red); }
+  .np-footer { padding: 10px 16px; background: #0d0d0d; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  .np-cancel { padding: 6px 14px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; }
+  .np-cancel:hover { border-color: #555; color: var(--text); }
+  .np-save { padding: 6px 16px; background: var(--ics-red); border: none; color: white; font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; }
+  .np-save:hover { background: var(--ics-red-dark); }
+
+  /* ─── NOTE ENTRY EXPAND/COLLAPSE ─── */
+  .note-entry { position: relative; }
+  .note-text-preview { font-size: 12px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .note-text-preview.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .note-expand-btn { background: none; border: none; color: var(--ics-red); font-size: 10px; font-weight: 700; cursor: pointer; letter-spacing: 1px; padding: 2px 0; text-transform: uppercase; }
+  .note-expand-btn:hover { text-decoration: underline; }
+  .note-view-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 10px; font-weight: 700; cursor: pointer; padding: 2px 8px; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; transition: all 0.15s; }
+  .note-view-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+
+  /* ─── SYSTEM TYPE COLUMN WIDTH ─── */
+  .submittal-table th:nth-child(2),
+  .submittal-table td:nth-child(2) { min-width: 200px; width: 200px; }
+
+  /* ─── ROLODEX TAB ─── */
+  .contractor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 32px; }
+  .contractor-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; position: relative; transition: all 0.15s; }
+  .contractor-card:hover { border-color: var(--ics-red); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(229,9,20,0.15); }
+  .contractor-card-top { background: var(--surface3); height: 80px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; overflow: hidden; }
+  .contractor-card-top img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+  .contractor-logo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .contractor-logo-placeholder .logo-icon { width: 40px; height: 40px; border: 2px dashed #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #555; font-size: 18px; }
+  .contractor-logo-placeholder span { font-size: 9px; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+  .contractor-card-top:hover .logo-icon { border-color: var(--ics-red); color: var(--ics-red); }
+  .logo-upload-input { display: none; }
+  .contractor-card-body { padding: 10px 12px; }
+  .contractor-card-body .con-name { font-weight: 700; font-size: 12px; color: var(--text); margin-bottom: 5px; line-height: 1.3; }
+  .contractor-card-body .con-detail { font-size: 10px; color: var(--text-dim); line-height: 1.6; word-break: break-word; }
+  .contractor-card-body .con-detail span { display: block; }
+  .contractor-card-actions { display: flex; gap: 4px; padding: 8px 10px 10px; border-top: 1px solid var(--border); }
+  .con-edit-btn, .con-del-btn { flex: 1; padding: 4px 0; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-radius: 2px; border: 1px solid var(--border); transition: all 0.15s; background: transparent; }
+  .con-edit-btn { color: var(--text-dim); }
+  .con-edit-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+  .con-del-btn { color: #444; }
+  .con-del-btn:hover { border-color: #555; color: var(--text-dim); }
+
+  /* ─── CONTRACTOR FORM MODAL ─── */
+  #contractor-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 350; align-items: center; justify-content: center; padding: 20px; }
+  #contractor-modal-overlay.open { display: flex; }
+  #contractor-modal { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--ics-red); width: 100%; max-width: 460px; border-radius: 4px; overflow: hidden; }
+  .cm-header { background: var(--surface2); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .cm-header h3 { font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text); }
+  #cm-close { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+  #cm-close:hover { color: var(--ics-red); }
+  .cm-body { padding: 16px; }
+  .cm-logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .cm-logo-preview { width: 72px; height: 72px; background: var(--surface3); border: 2px dashed #444; border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; position: relative; }
+  .cm-logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+  .cm-logo-preview .cm-logo-hint { font-size: 9px; color: #555; text-align: center; letter-spacing: 1px; text-transform: uppercase; line-height: 1.4; padding: 4px; }
+  .cm-logo-preview:hover { border-color: var(--ics-red); }
+  #cm-logo-upload { display: none; }
+  .cm-logo-info { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
+  .cm-logo-info strong { color: var(--text-dim); display: block; margin-bottom: 2px; }
+  .cm-footer { padding: 12px 16px; background: #0d0d0d; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ─── COMBOBOX ─── */
+  .combobox-wrap { position: relative; }
+  .combobox-input-row { display: flex; gap: 0; }
+  .combobox-input { flex: 1; background: var(--surface3); border: 1px solid var(--border); border-right: none; color: var(--text); padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none; border-radius: 2px 0 0 2px; transition: border-color 0.15s; }
+  .combobox-input:focus { border-color: var(--ics-red); }
+  .combobox-clear { background: var(--surface3); border: 1px solid var(--border); border-left: none; color: var(--text-muted); cursor: pointer; padding: 0 8px; font-size: 14px; border-radius: 0 2px 2px 0; transition: all 0.15s; }
+  .combobox-clear:hover { color: var(--ics-red); }
+  .combobox-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface2); border: 1px solid var(--ics-red); border-top: none; z-index: 999; max-height: 200px; overflow-y: auto; border-radius: 0 0 3px 3px; }
+  .combobox-dropdown.open { display: block; }
+  .combobox-option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border); }
+  .combobox-option:last-child { border-bottom: none; }
+  .combobox-option:hover { background: var(--surface3); }
+  .combobox-option-logo { width: 28px; height: 28px; background: var(--surface3); border: 1px solid var(--border); border-radius: 3px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .combobox-option-logo img { width: 100%; height: 100%; object-fit: contain; }
+  .combobox-option-logo .cb-initials { font-size: 9px; font-weight: 700; color: var(--ics-red); letter-spacing: 0; }
+  .combobox-option-info { flex: 1; min-width: 0; }
+  .combobox-option-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .combobox-option-sub { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .combobox-empty { padding: 10px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+  /* ─── OVERDUE NOTIFICATION BANNER ─── */
+  #overdue-banner { display: none; background: #1a0505; border-bottom: 2px solid var(--ics-red); padding: 0; position: sticky; top: 58px; z-index: 90; overflow: hidden; }
+  #overdue-banner.visible { display: block; }
+  .banner-header { display: flex; align-items: center; gap: 10px; padding: 6px 16px; background: var(--ics-red); }
+  .banner-header-icon { font-size: 13px; }
+  .banner-header-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; color: white; text-transform: uppercase; flex: 1; }
+  .banner-dismiss-all { background: none; border: 1px solid rgba(255,255,255,0.4); color: white; font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 3px 10px; cursor: pointer; text-transform: uppercase; border-radius: 2px; }
+  .banner-dismiss-all:hover { background: rgba(255,255,255,0.15); }
+  .banner-items { padding: 6px 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .banner-item { display: flex; align-items: center; gap: 8px; background: #2a0a0a; border: 1px solid var(--ics-red); padding: 5px 10px; border-radius: 3px; font-size: 11px; color: var(--text); }
+  .banner-item-dot { width: 6px; height: 6px; background: var(--ics-red); border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 5px var(--ics-red); animation: pulse 1.5s ease-in-out infinite; }
+  .banner-item-text { line-height: 1.4; }
+  .banner-item-text strong { color: var(--ics-red); font-weight: 700; }
+  .banner-item-text .bi-days { color: var(--ics-red); font-weight: 700; }
+  .banner-item-dismiss { background: none; border: none; color: #666; cursor: pointer; font-size: 13px; padding: 0 0 0 4px; line-height: 1; }
+  .banner-item-dismiss:hover { color: var(--ics-red); }
+
+  /* ─── SAVE TOAST ─── */
+  #save-toast { position: fixed; bottom: 24px; right: 24px; background: #0d1a0d; border: 1px solid var(--green); border-left: 4px solid var(--green); color: var(--text); padding: 12px 18px; font-size: 12px; font-weight: 600; border-radius: 3px; z-index: 9999; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 220px; }
+  #save-toast.show { display: block; animation: toastIn 0.2s ease; }
+  #save-toast.hide { animation: toastOut 0.3s ease forwards; }
+  .toast-title { color: var(--green); font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .toast-body { color: var(--text-dim); font-size: 11px; }
+  @keyframes toastIn  { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes toastOut { from { opacity:1; transform: translateY(0); } to { opacity:0; transform: translateY(12px); } }
+
+  /* ─── SYSTEM TYPE COMBOBOX ─── */
+  .sys-combo-wrap { position: relative; min-width: 190px; }
+  .sys-combo-input { width: 100%; background: var(--surface3); border: 1px solid var(--border); color: var(--text); font-size: 11px; font-family: inherit; padding: 4px 24px 4px 6px; border-radius: 2px; outline: none; cursor: pointer; transition: border-color 0.15s; }
+  .sys-combo-input:focus { border-color: var(--ics-red); }
+  .sys-combo-arrow { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 10px; pointer-events: none; }
+  .sys-combo-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface2); border: 1px solid var(--ics-red); border-top: none; z-index: 999; max-height: 180px; overflow-y: auto; border-radius: 0 0 3px 3px; }
+  .sys-combo-dropdown.open { display: block; }
+  .sys-combo-opt { padding: 6px 10px; cursor: pointer; font-size: 11px; color: var(--text); border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  .sys-combo-opt:last-child { border-bottom: none; }
+  .sys-combo-opt:hover, .sys-combo-opt.highlighted { background: var(--surface3); color: var(--ics-red); }
+
+  /* ─── LOGIN GATE ─── */
+  #login-gate {
+    position: fixed; inset: 0; z-index: 99999;
+    background: var(--black);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #login-gate.hidden { display: none; }
+  #app-shell { display: none; }
+  #app-shell.unlocked { display: block; }
+
+  .login-box {
+    width: 100%; max-width: 360px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--ics-red);
+    border-radius: 4px; padding: 32px 28px;
+  }
+  .login-logo-row {
+    display: flex; align-items: center; gap: 12px;
+    justify-content: center; margin-bottom: 24px;
+  }
+  .login-diamond {
+    width: 42px; height: 42px; background: var(--ics-red);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 12px; color: white; flex-shrink: 0;
+  }
+  .login-title { font-size: 17px; font-weight: 800; letter-spacing: 2px; color: var(--text); }
+  .login-title span { color: var(--ics-red); }
+  .login-subtitle {
+    text-align: center; font-size: 10px; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 28px;
+  }
+  .login-field { margin-bottom: 16px; }
+  .login-field label {
+    display: block; font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    color: var(--ics-red); text-transform: uppercase; margin-bottom: 6px;
+  }
+  .login-field input {
+    width: 100%; background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; font-size: 13px;
+    font-family: inherit; outline: none; border-radius: 3px;
+    transition: border-color 0.15s;
+  }
+  .login-field input:focus { border-color: var(--ics-red); }
+  .login-error {
+    display: none; background: rgba(229,9,20,0.1); border: 1px solid var(--ics-red);
+    color: var(--ics-red); font-size: 11px; padding: 8px 12px;
+    border-radius: 3px; margin-bottom: 16px; line-height: 1.4;
+  }
+  .login-error.visible { display: block; }
+  .login-submit {
+    width: 100%; padding: 11px; background: var(--ics-red); border: none;
+    color: white; font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; cursor: pointer; border-radius: 3px;
+    transition: background 0.15s;
+  }
+  .login-submit:hover { background: var(--ics-red-dark); }
+  .login-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .login-footer {
+    text-align: center; margin-top: 20px;
+    font-size: 9px; color: var(--text-muted); letter-spacing: 1px;
+  }
+  .login-spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid rgba(255,255,255,0.3); border-top-color: white;
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+    margin-right: 6px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── USER MENU (logged-in state, top nav) ─── */
+  #user-menu {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px;
+  }
+  #user-menu .user-email { color: var(--text); font-weight: 600; }
+  #logout-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; padding: 4px 10px; cursor: pointer;
+    border-radius: 2px; text-transform: uppercase; transition: all 0.15s;
+  }
+  #logout-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+
+  /* ─── MOBILE RESPONSIVE (max-width: 768px) ─── */
+  @media (max-width: 768px) {
+
+    /* ── Top Nav: stack into two rows ── */
+    #topnav {
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      gap: 8px;
+      position: sticky;
+    }
+    #topnav .logo { flex: 1; min-width: 0; }
+    #topnav h1 { font-size: 13px; }
+    .nav-tabs {
+      order: 3;
+      width: 100%;
+      margin-left: 0;
+      gap: 4px;
+    }
+    .nav-tab {
+      flex: 1;
+      padding: 7px 6px;
+      font-size: 10px;
+      text-align: center;
+    }
+    #sync-indicator { order: 1; font-size: 9px; }
+    #user-menu {
+      order: 2;
+      font-size: 9px;
+      gap: 4px;
+    }
+    #user-menu .user-email { display: none; } /* save space, email visible via tap on logout area if needed */
+    #logout-btn { padding: 4px 8px; font-size: 9px; }
+    #add-project-btn {
+      order: 4;
+      width: 100%;
+      padding: 9px;
+      font-size: 12px;
+    }
+
+    /* ── Overdue banner: stack chips ── */
+    #overdue-banner { top: 96px; }
+    .banner-items { flex-direction: column; }
+    .banner-item { width: 100%; }
+    .banner-item-text { font-size: 10px; line-height: 1.5; }
+
+    /* ── App body padding ── */
+    #app { padding: 12px; }
+    .section-title { font-size: 16px; }
+
+    /* ── Project search: full width ── */
+    .project-search-input { max-width: 100%; }
+
+    /* ── Project grid: single column on phones ── */
+    .project-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .box-card-top { height: 64px; }
+    .box-icon { width: 42px; height: 42px; }
+
+    /* ── Job Card Modal: full-screen takeover ── */
+    #modal-overlay { padding: 0; align-items: stretch; }
+    #job-card {
+      max-width: 100%;
+      width: 100%;
+      min-height: 100vh;
+      border-radius: 0;
+      border-top: none;
+    }
+    .jc-header { padding: 12px; }
+    .jc-header-label { display: none; } /* save space */
+    .jc-project-title { font-size: 13px; max-width: 70vw; }
+
+    /* Stack sidebar above main body instead of side-by-side */
+    .jc-body { grid-template-columns: 1fr; }
+    .jc-sidebar {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Submittals table: horizontal scroll instead of squeeze ── */
+    .section-block { overflow-x: visible; }
+    .submittal-table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .submittal-table thead, .submittal-table tbody { display: block; }
+    .submittal-table tr { display: block; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+    .submittal-table thead tr { display: none; } /* hide header row, use labels instead */
+    .submittal-table td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      white-space: normal;
+      border-bottom: 1px solid var(--surface3);
+      padding: 8px 4px;
+    }
+    .submittal-table td:last-child { border-bottom: none; justify-content: flex-end; }
+    .submittal-table td::before {
+      content: attr(data-label);
+      font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      color: var(--text-muted); text-transform: uppercase;
+      flex-shrink: 0; margin-right: 8px;
+    }
+    .sys-combo-wrap, .system-select-wrap { min-width: 0; width: 100%; }
+
+    /* ── Job card save bar: stack buttons ── */
+    .jc-save-bar { flex-wrap: wrap; padding: 10px; }
+    .jc-save-bar .status-msg { order: -1; width: 100%; text-align: center; margin-bottom: 4px; }
+    .btn-archive, .btn-report, .btn-save { flex: 1; min-width: 0; padding: 9px 6px; font-size: 10px; }
+
+    /* ── New Project Modal: full width ── */
+    #new-project-overlay { padding: 12px; }
+    #new-project-form { max-width: 100%; }
+
+    /* ── Contractor Rolodex: single column ── */
+    .contractor-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    #contractor-modal-overlay { padding: 12px; }
+    #contractor-modal { max-width: 100%; }
+    .cm-logo-row { flex-direction: column; align-items: flex-start; }
+
+    /* ── Note popup: full width ── */
+    #note-popup-overlay { padding: 12px; }
+    #note-popup { max-width: 100%; }
+
+    /* ── Summary Report: scale to fit phone screen ── */
+    #report-overlay { padding: 0; }
+    #report-container { max-width: 100%; font-size: 11px; }
+    .rpt-header-band { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 16px; }
+    .rpt-header-meta { text-align: left; }
+    .rpt-subheader { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 16px; }
+    .rpt-body { padding: 14px 16px; }
+    .rpt-info-strip { grid-template-columns: 1fr; }
+    .rpt-info-strip + .rpt-info-strip { margin-top: 0 !important; }
+    .rpt-table { display: block; overflow-x: auto; white-space: nowrap; }
+    .rpt-action-bar { flex-direction: column; padding: 12px 16px; }
+    .rpt-print-btn, .rpt-close-btn { width: 100%; }
+
+    /* ── Login screen: tighter padding on small phones ── */
+    .login-box { padding: 24px 20px; max-width: 100%; }
+
+    /* ── Combobox dropdowns: ensure they don't overflow viewport ── */
+    .combobox-dropdown, .sys-combo-dropdown { max-height: 160px; }
+  }
+
+  /* ─── MOBILE: SMALL PHONES (max-width: 400px) ─── */
+  @media (max-width: 400px) {
+    .project-grid, .contractor-grid { grid-template-columns: 1fr; }
+    #topnav h1 span { display: none; }
+    .nav-tab { font-size: 9px; padding: 6px 4px; }
+  }
+
+  /* ─── PRINT STYLES ─── */
+  @media print {
+
+    /* 0.5in margins all around */
+    @page {
+      size: letter portrait;
+      margin: 0.5in;
+    }
+
+    /* Hide all UI except the report */
+    body * { visibility: hidden; }
+    #report-overlay,
+    #report-overlay * { visibility: visible; }
+
+    /* Flatten the modal overlay */
+    #report-overlay {
+      position: static !important;
+      background: none !important;
+      padding: 0 !important;
+      display: block !important;
+      overflow: visible !important;
+    }
+
+    /* Report container: full page width */
+    #report-container {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      font-size: 10pt;
+      color: #111 !important;
+    }
+
+    /* Hide the screen-only Print/Close button bar */
+    .rpt-action-bar { display: none !important; }
+
+    /* ── REPEATING HEADER: fixed to top of every page ── */
+    .rpt-header-band {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: #E50914 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      z-index: 9999;
+      padding: 8px 28px !important;
+    }
+
+    /* Push body content below the fixed header (~60px tall) */
+    .rpt-body-wrap {
+      margin-top: 72px; /* clears fixed header height */
+    }
+
+    /* Subheader colors */
+    .rpt-subheader {
+      background: #1a1a1a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Section header colors + no orphan headers */
+    .rpt-section-header {
+      background: #1a1a1a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
+    /* ── REPEATING FOOTER: fixed to bottom of every page ── */
+    .rpt-footer-band {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #1a1a1a !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      padding: 5px 28px !important;
+    }
+
+    /* Add bottom padding to body so last content clears fixed footer */
+    .rpt-body { padding: 8px 0 52px 0; }
+
+    /* ── .25in top buffer for content that continues on a new page ── */
+    /* orphaned content drops 0.25in below the fixed header            */
+    .rpt-notes-list,
+    .rpt-task-list,
+    .rpt-table,
+    .rpt-info-strip,
+    .rpt-scope-strip {
+      margin-top: 0;
+    }
+
+    /* Each note row, task row and table row that lands at top of a new
+       page needs clearance. We use a top padding on the container so
+       the browser accounts for the fixed header when flowing content.  */
+    .rpt-note-row:first-child,
+    .rpt-task-row:first-child {
+      padding-top: 4px;
+    }
+
+    /* Force .25in (approx 24px at 96dpi) top-of-page gap so the fixed
+       header never clips the first visible line of a continued section. */
+    @page {
+      size: letter portrait;
+      margin-top: 0.75in;   /* .5in page margin + .25in content buffer */
+      margin-bottom: 0.65in;
+      margin-left: 0.5in;
+      margin-right: 0.5in;
+    }
+
+    /* Table header colors */
+    .rpt-table th {
+      background: #f2f2f2 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Keep rows together across pages */
+    .rpt-table       { break-inside: auto; }
+    .rpt-table tr    { break-inside: avoid; page-break-inside: avoid; }
+    .rpt-note-row    { break-inside: avoid; page-break-inside: avoid; }
+    .rpt-task-row    { break-inside: avoid; page-break-inside: avoid; }
+
+    /* Status badge colors — all stages */
+    .rpt-status-approved    { background: #dcfce7 !important; color: #16a34a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-pending     { background: #fef9c3 !important; color: #a16207 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-overdue     { background: #fee2e2 !important; color: #E50914 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-revise      { background: #ffedd5 !important; color: #c2410c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-design      { background: #dbeafe !important; color: #1d4ed8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-internal    { background: #ede9fe !important; color: #6d28d9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-submitted   { background: #cffafe !important; color: #0e7490 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-status-corrections { background: #fef3c7 !important; color: #92400e !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rpt-task-row.rpt-overdue { background: #fff5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<div id="login-gate">
+  <div class="login-box">
+    <div class="login-logo-row">
+      <div class="login-diamond">ICS</div>
+      <div class="login-title"><span>ICS</span> SERVICE CRM</div>
+    </div>
+    <div class="login-subtitle">Authorized Access Only</div>
+    <div class="login-error" id="login-error"></div>
+    <form id="login-form" onsubmit="event.preventDefault(); handleLogin(); return false;">
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="login-email" autocomplete="username" required>
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="login-submit" id="login-submit-btn">Sign In</button>
+    </form>
+    <div class="login-footer">ICS SERVICE CO. — Secure Project Access</div>
+  </div>
+</div>
+
+<!-- APP SHELL — hidden until authenticated -->
+<div id="app-shell">
+
+<!-- TOP NAV -->
+<div id="topnav">
+  <div class="logo">
+    <div class="diamond-logo">ICS</div>
+    <h1><span>ICS</span> SERVICE CRM</h1>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('playground')">Playground</button>
+    <button class="nav-tab" onclick="switchTab('sandbox')">Sandbox</button>
+    <button class="nav-tab" onclick="switchTab('rolodex')">&#128218; Rolodex</button>
+  </nav>
+  <div id="sync-indicator">
+    <div id="sync-dot"></div>
+    <span id="sync-label">Connecting...</span>
+  </div>
+  <div id="user-menu">
+    <span class="user-email" id="user-email-label"></span>
+    <button id="logout-btn" onclick="handleLogout()">Sign Out</button>
+  </div>
+  <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
+</div>
+
+<!-- OVERDUE NOTIFICATION BANNER -->
+<div id="overdue-banner">
+  <div class="banner-header">
+    <span class="banner-header-icon">⚠</span>
+    <span class="banner-header-label">Overdue Submittals Requiring Attention</span>
+    <button class="banner-dismiss-all" onclick="dismissAllBanner()">Dismiss All</button>
+  </div>
+  <div class="banner-items" id="banner-items"></div>
+</div>
+
+<!-- SAVE TOAST -->
+<div id="save-toast">
+  <div class="toast-title">✓ Project Saved</div>
+  <div class="toast-body" id="toast-body"></div>
+</div>
+
+<!-- APP BODY -->
+<div id="app">
+  <div id="tab-playground">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:4px;">
+      <div>
+        <div class="section-label">Active Projects</div>
+        <div class="section-title" style="margin-bottom:0">Playground</div>
+      </div>
+    </div>
+    <div class="project-search-wrap" style="margin-top:12px;margin-bottom:16px;">
+      <span class="project-search-icon">&#128269;</span>
+      <input type="text" class="project-search-input" id="project-search"
+        placeholder="Search projects by name, contractor, or district..."
+        oninput="filterProjects()"
+        autocomplete="off">
+      <button class="project-search-clear" id="project-search-clear" onclick="clearProjectSearch()">&#x2715;</button>
+      <span class="search-result-count" id="search-result-count" style="display:none"></span>
+    </div>
+    <div class="project-grid" id="playground-grid"></div>
+  </div>
+  <div id="tab-sandbox" style="display:none">
+    <div class="section-label">Archived Projects</div>
+    <div class="section-title">Sandbox</div>
+    <div class="project-grid" id="sandbox-grid"></div>
+  </div>
+  <div id="tab-rolodex" style="display:none">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div class="section-label">Contractor Directory</div>
+        <div class="section-title">Rolodex</div>
+      </div>
+      <button id="add-contractor-btn" onclick="openContractorModal(null)"
+        style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
+        onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
+        onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
+        + Add Contractor
+      </button>
+    </div>
+    <div class="contractor-grid" id="rolodex-grid"></div>
+  </div>
+</div>
+
+<!-- JOB CARD MODAL -->
+<div id="modal-overlay">
+  <div id="job-card">
+    <div class="jc-header">
+      <span class="jc-header-label">JOB CARD</span>
+      <h2 id="jc-project-title" class="jc-project-title">—</h2>
+      <button id="close-modal" onclick="closeModal()">✕</button>
+    </div>
+    <div class="jc-body">
+      <div class="jc-sidebar">
+        <div class="sidebar-section-title">Contractor Info</div>
+        <div class="field-group">
+          <label>Contractor Name</label>
+          <div class="combobox-wrap" id="jc-contractor-wrap">
+            <div class="combobox-input-row">
+              <input type="text" class="combobox-input" id="f-contractor"
+                placeholder="Type or search contractor..."
+                autocomplete="off"
+                oninput="comboboxFilter('jc')"
+                onfocus="comboboxOpen('jc')"
+                onblur="comboboxBlur('jc')">
+              <button class="combobox-clear" onclick="comboboxClear('jc')" tabindex="-1">&#x2715;</button>
+            </div>
+            <div class="combobox-dropdown" id="jc-combobox-dropdown"></div>
+          </div>
+        </div>
+        <div class="field-group"><label>Address</label><input type="text" id="f-contractor-addr" placeholder="City, State, ZIP"></div>
+        <div class="field-group"><label>Phone</label><input type="text" id="f-phone" placeholder="(000) 000-0000"></div>
+        <div class="field-group"><label>Email</label><input type="text" id="f-email" placeholder="email@domain.com"></div>
+        <div class="sidebar-section-title">Project Info</div>
+        <div class="field-group"><label>Project Name</label><input type="text" id="f-project-name" placeholder="Project name"></div>
+        <div class="field-group"><label>Site Address</label><input type="text" id="f-site-addr" placeholder="City, State, ZIP"></div>
+        <div class="field-group"><label>District</label><input type="text" id="f-district" placeholder="District / School Dist"></div>
+        <div class="field-group"><label>Project Manager</label><input type="text" id="f-pm" placeholder="PM name"></div>
+        <div class="field-group"><label>Field Lead</label><input type="text" id="f-field-lead" placeholder="Field lead"></div>
+        <div class="field-group"><label>Designer</label><input type="text" id="f-designer" placeholder="Designer name"></div>
+        <div class="field-group">
+          <label>Spec Sections / Systems</label>
+          <textarea id="f-scope" rows="4" placeholder="e.g.&#10;27 15 00 – Structured Cabling&#10;28 31 00 – Fire Alarm&#10;28 23 00 – CCTV"></textarea>
+        </div>
+      </div>
+
+      <div class="jc-main">
+        <div class="section-block">
+          <div class="section-block-title">What's Next — Priority Queue</div>
+          <ul class="task-list" id="task-list"></ul>
+          <div class="add-task-row">
+            <input type="text" id="new-task-input" placeholder="Add task...">
+            <button onclick="addTask()">+ ADD</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title">Submittals</div>
+          <table class="submittal-table">
+            <thead>
+              <tr>
+                <th>Data Type</th>
+                <th>System Type</th>
+                <th>Submittal Date</th>
+                <th>Status</th>
+                <th>Date Approved/Returned</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="submittal-tbody"></tbody>
+          </table>
+          <button class="add-sub-btn" onclick="addSubmittalRow()">+ Add Row</button>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title">General Notes — Running Log</div>
+          <div class="notes-log" id="notes-log"></div>
+          <div class="add-note-row">
+            <div class="add-note-date-row">
+              <label>Entry Date</label>
+              <input type="date" id="new-note-date">
+              <span class="date-hint">Leave blank to use today's date &amp; time</span>
+            </div>
+            <textarea id="new-note-input" placeholder="Enter note..."></textarea>
+            <button onclick="addNote()">LOG ENTRY</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="jc-save-bar">
+      <span class="status-msg" id="save-status"></span>
+      <button class="btn-archive" onclick="archiveProject()">Archive</button>
+      <button class="btn-report" onclick="generateReport()">&#128196; Summary Report</button>
+      <button class="btn-save" onclick="saveProject()">Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PROJECT MODAL -->
+<div id="new-project-overlay">
+  <div id="new-project-form">
+    <div class="npf-header">
+      <h3>NEW PROJECT</h3>
+      <button id="close-npf" onclick="closeNewProject()">✕</button>
+    </div>
+    <div class="npf-body">
+      <div class="field-group"><label>Project Name</label><input type="text" id="np-name" placeholder="e.g. Riverside Fire Station"></div>
+      <div class="field-group"><label>District</label><input type="text" id="np-district" placeholder="e.g. Dist 4"></div>
+      <div class="field-group">
+        <label>Contractor Name</label>
+        <div class="combobox-wrap" id="np-contractor-wrap">
+          <div class="combobox-input-row">
+            <input type="text" class="combobox-input" id="np-contractor"
+              placeholder="Type or search contractor..."
+              autocomplete="off"
+              oninput="comboboxFilter('np')"
+              onfocus="comboboxOpen('np')"
+              onblur="comboboxBlur('np')">
+            <button class="combobox-clear" onclick="comboboxClear('np')" tabindex="-1">&#x2715;</button>
+          </div>
+          <div class="combobox-dropdown" id="np-combobox-dropdown"></div>
+        </div>
+      </div>
+      <div class="field-group"><label>Systems / Spec Sections</label><textarea id="np-scope" rows="3" placeholder="e.g. Structured Cabling, Fire Alarm"></textarea></div>
+    </div>
+    <div class="npf-footer">
+      <button class="btn-archive" onclick="closeNewProject()">Cancel</button>
+      <button class="btn-save" onclick="createProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTRACTOR MODAL -->
+<input type="file" id="cm-logo-upload" accept="image/*">
+<div id="contractor-modal-overlay">
+  <div id="contractor-modal">
+    <div class="cm-header">
+      <h3 id="cm-modal-title">ADD CONTRACTOR</h3>
+      <button id="cm-close" onclick="closeContractorModal()">✕</button>
+    </div>
+    <div class="cm-body">
+      <div class="cm-logo-row">
+        <div class="cm-logo-preview" id="cm-logo-preview" onclick="document.getElementById('cm-logo-upload').click()">
+          <span class="cm-logo-hint">Click to upload logo</span>
+        </div>
+        <div class="cm-logo-info">
+          <strong>Company Logo</strong>
+          Optional. Displays on contractor card and in project combobox for quick visual identification.<br>PNG, JPG, or SVG recommended.
+        </div>
+      </div>
+      <div class="field-group"><label>Contractor Name *</label><input type="text" id="cm-name" placeholder="e.g. Apex Construction"></div>
+      <div class="field-group"><label>Address</label><input type="text" id="cm-address" placeholder="City, State, ZIP"></div>
+      <div class="field-group"><label>Phone</label><input type="text" id="cm-phone" placeholder="(000) 000-0000"></div>
+      <div class="field-group"><label>Email</label><input type="text" id="cm-email" placeholder="contact@company.com"></div>
+    </div>
+    <div class="cm-footer">
+      <button class="btn-archive" onclick="closeContractorModal()">Cancel</button>
+      <button class="btn-save" onclick="saveContractor()">Save Contractor</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTE POPUP MODAL -->
+<div id="note-popup-overlay">
+  <div id="note-popup">
+    <div class="np-header">
+      <div>
+        <div class="np-ts" id="note-popup-ts"></div>
+        <div class="np-title">Edit Note</div>
+      </div>
+      <button id="note-popup-close" onclick="closeNotePopup()">✕</button>
+    </div>
+    <div class="np-body">
+      <textarea id="note-popup-textarea" placeholder="Note text..."></textarea>
+    </div>
+    <div class="np-footer">
+      <button class="np-cancel" onclick="closeNotePopup()">Cancel</button>
+      <button class="np-save" onclick="saveNotePopup()">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+<div id="report-overlay">
+  <div id="report-container"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// FIREBASE INITIALIZATION
+// ════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDg4vAkbDU0aTperjvXX6QblypSmJC5KSM",
+  authDomain: "ics-service-crm-new-gui.firebaseapp.com",
+  projectId: "ics-service-crm-new-gui",
+  storageBucket: "ics-service-crm-new-gui.firebasestorage.app",
+  messagingSenderId: "47945586457",
+  appId: "1:47945586457:web:78cda6c8a698ef8fbd9788",
+  measurementId: "G-99TV97DH04"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth      = firebase.auth();
+const db        = firebase.firestore();
+const analytics = firebase.analytics();
+
+const FS_PROJECTS    = 'ics_projects';
+const FS_CONTRACTORS = 'ics_contractors';
+
+// ════════════════════════════════════════════════════════
+// AUTHENTICATION GATE
+// ════════════════════════════════════════════════════════
+let appInitialized = false; // prevents double-init of data layer
+
+function showLoginError(message) {
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = message;
+  errEl.classList.add('visible');
+}
+
+function clearLoginError() {
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('visible');
+  errEl.textContent = '';
+}
+
+function setLoginLoading(loading) {
+  const btn = document.getElementById('login-submit-btn');
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? '<span class="login-spinner"></span>Signing In...'
+    : 'Sign In';
+}
+
+async function handleLogin() {
+  clearLoginError();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showLoginError('Email and password are required.');
+    return;
+  }
+
+  setLoginLoading(true);
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    // onAuthStateChanged will handle the rest
+  } catch (e) {
+    setLoginLoading(false);
+    let msg = 'Sign-in failed. Check your credentials and try again.';
+    if (e.code === 'auth/invalid-email')          msg = 'That email address is not valid.';
+    if (e.code === 'auth/user-disabled')          msg = 'This account has been disabled.';
+    if (e.code === 'auth/user-not-found')         msg = 'No account found for that email.';
+    if (e.code === 'auth/wrong-password')         msg = 'Incorrect password.';
+    if (e.code === 'auth/invalid-credential')     msg = 'Incorrect email or password.';
+    if (e.code === 'auth/too-many-requests')      msg = 'Too many attempts. Try again later.';
+    if (e.code === 'auth/network-request-failed') msg = 'Network error. Check your connection.';
+    showLoginError(msg);
+  }
+}
+
+function handleLogout() {
+  if (!confirm('Sign out of ICS Service CRM?')) return;
+  auth.signOut();
+}
+
+// Note: Enter/Go/Done key submission is now handled natively by the
+// <form onsubmit> handler above — this works correctly across desktop
+// browsers AND mobile keyboards (iOS/Android "Go" button triggers the
+// form's submit event natively, unlike a manual keydown listener which
+// is unreliable on mobile soft keyboards).
+
+// ─── AUTH STATE LISTENER — the actual gate ──────────────
+auth.onAuthStateChanged(function(user) {
+  const gate  = document.getElementById('login-gate');
+  const shell = document.getElementById('app-shell');
+
+  if (user) {
+    // Authenticated — show app, hide gate
+    gate.classList.add('hidden');
+    shell.classList.add('unlocked');
+    const emailLabel = document.getElementById('user-email-label');
+    if (emailLabel) emailLabel.textContent = user.email;
+
+    setLoginLoading(false);
+    document.getElementById('login-password').value = '';
+
+    // Initialize data layer ONCE per session
+    if (!appInitialized) {
+      appInitialized = true;
+      initializeCRMData();
+    }
+  } else {
+    // Not authenticated — show gate, hide app
+    gate.classList.remove('hidden');
+    shell.classList.remove('unlocked');
+    appInitialized = false;
+  }
+});
+
+// ─── SYNC INDICATOR ──────────────────────────────────────
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!dot || !lbl) return;
+  dot.className = state; // 'syncing' | 'synced' | 'error'
+  lbl.textContent = label;
+}
+
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+let projects    = [];
+let contractors = [];
+let activeProjectId    = null;
+let editingContractorId = null;
+let cmLogoData  = null;
+let currentTab  = 'playground';
+let activeNoteId = null;
+
+// ════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function now() {
+  return new Date().toLocaleString('en-US', {
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
+  });
+}
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,dy] = d.split('-');
+  return `${m}/${dy}/${y}`;
+}
+
+function isOverdue(dateStr, status) {
+  if (!dateStr || status === 'Approved') return false;
+  return dateStr < today();
+}
+
+const STATUS_STAGES = [
+  'Pending','Design Complete','Internal Review',
+  'Submitted','Revise & Resubmit','Corrections','Approved'
+];
+
+function getStatusClass(status) {
+  if (!status) return '';
+  const map = {
+    'Approved':'status-approved','Pending':'status-pending','Overdue':'status-overdue',
+    'Design Complete':'status-design','Internal Review':'status-internal',
+    'Submitted':'status-submitted','Revise & Resubmit':'status-revise',
+    'Corrections':'status-corrections'
+  };
+  return map[status] || 'status-pending';
+}
+
+function getRptStatusClass(status) {
+  if (!status) return '';
+  const map = {
+    'Approved':'rpt-status-approved','Overdue':'rpt-status-overdue',
+    'Design Complete':'rpt-status-design','Internal Review':'rpt-status-internal',
+    'Submitted':'rpt-status-submitted','Revise & Resubmit':'rpt-status-revise',
+    'Corrections':'rpt-status-corrections'
+  };
+  return map[status] || 'rpt-status-pending';
+}
+
+// ════════════════════════════════════════════════════════
+// LOCALSTORAGE — PRIMARY BACKUP LAYER
+// ════════════════════════════════════════════════════════
+const LS_PROJECTS    = 'ics_crm_projects_v1';
+const LS_CONTRACTORS = 'ics_crm_contractors_v1';
+const LS_BACKUP_PREFIX = 'ics_crm_backup_';
+
+function persistLocal() {
+  try {
+    localStorage.setItem(LS_PROJECTS,    JSON.stringify(projects));
+    localStorage.setItem(LS_CONTRACTORS, JSON.stringify(contractors));
+  } catch(e) { console.warn('ICS CRM: localStorage write failed', e); }
+}
+
+function loadLocal() {
+  try {
+    const rp = localStorage.getItem(LS_PROJECTS);
+    const rc = localStorage.getItem(LS_CONTRACTORS);
+    if (rp) { const p = JSON.parse(rp); if (Array.isArray(p) && p.length) projects = p; }
+    if (rc) { const c = JSON.parse(rc); if (Array.isArray(c)) contractors = c; }
+  } catch(e) { console.warn('ICS CRM: localStorage read failed', e); }
+}
+
+// ─── DAILY BACKUP (triggered once per calendar day) ──────
+function runDailyBackupIfNeeded() {
+  const backupKey = LS_BACKUP_PREFIX + today();
+  if (localStorage.getItem(backupKey)) return; // already ran today
+  try {
+    localStorage.setItem(backupKey, JSON.stringify({ projects, contractors, ts: now() }));
+    // Prune backups older than 30 days
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(LS_BACKUP_PREFIX))
+      .forEach(k => {
+        const dateStr = k.replace(LS_BACKUP_PREFIX, '');
+        if (new Date(dateStr) < cutoff) localStorage.removeItem(k);
+      });
+    console.log('ICS CRM: Daily backup written for', today());
+  } catch(e) { console.warn('ICS CRM: Daily backup failed', e); }
+}
+
+// ════════════════════════════════════════════════════════
+// FIRESTORE — CLOUD LAYER
+// ════════════════════════════════════════════════════════
+async function loadFromFirestore() {
+  setSyncStatus('syncing', 'Loading...');
+  try {
+    const [pSnap, cSnap] = await Promise.all([
+      db.collection(FS_PROJECTS).get(),
+      db.collection(FS_CONTRACTORS).get()
+    ]);
+    const fsProjects    = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const fsContractors = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (fsProjects.length > 0 || fsContractors.length > 0) {
+      projects    = fsProjects;
+      contractors = fsContractors;
+      persistLocal(); // mirror to localStorage
+      setSyncStatus('synced', 'Cloud Synced');
+    } else {
+      // Firestore empty — push localStorage data up if we have any
+      if (projects.length > 0) {
+        await pushAllToFirestore();
+        setSyncStatus('synced', 'Cloud Synced');
+      } else {
+        setSyncStatus('synced', 'Ready');
+      }
+    }
+  } catch(e) {
+    console.warn('ICS CRM: Firestore load failed, using local data', e);
+    setSyncStatus('error', 'Offline — Local Only');
+  }
+  renderGrid();
+  renderOverdueBanner();
+  runDailyBackupIfNeeded();
+}
+
+async function saveProjectToFirestore(p) {
+  setSyncStatus('syncing', 'Saving...');
+  try {
+    await db.collection(FS_PROJECTS).doc(p.id).set(p);
+    setSyncStatus('synced', 'Cloud Synced');
+  } catch(e) {
+    console.warn('ICS CRM: Firestore project save failed', e);
+    setSyncStatus('error', 'Save failed — stored locally');
+  }
+}
+
+async function deleteProjectFromFirestore(id) {
+  try { await db.collection(FS_PROJECTS).doc(id).delete(); }
+  catch(e) { console.warn('ICS CRM: Firestore project delete failed', e); }
+}
+
+async function saveContractorToFirestore(c) {
+  setSyncStatus('syncing', 'Saving...');
+  try {
+    await db.collection(FS_CONTRACTORS).doc(c.id).set(c);
+    setSyncStatus('synced', 'Cloud Synced');
+  } catch(e) {
+    console.warn('ICS CRM: Firestore contractor save failed', e);
+    setSyncStatus('error', 'Save failed — stored locally');
+  }
+}
+
+async function deleteContractorFromFirestore(id) {
+  try { await db.collection(FS_CONTRACTORS).doc(id).delete(); }
+  catch(e) { console.warn('ICS CRM: Firestore contractor delete failed', e); }
+}
+
+async function pushAllToFirestore() {
+  const batch = db.batch();
+  projects.forEach(p    => batch.set(db.collection(FS_PROJECTS).doc(p.id), p));
+  contractors.forEach(c => batch.set(db.collection(FS_CONTRACTORS).doc(c.id), c));
+  await batch.commit();
+}
+
+// ─── UNIFIED PERSIST (cloud + local) ─────────────────────
+function persistData(project) {
+  persistLocal();
+  if (project) saveProjectToFirestore(project);
+}
+
+function persistContractors(contractor) {
+  persistLocal();
+  if (contractor) saveContractorToFirestore(contractor);
+}
+
+// ════════════════════════════════════════════════════════
+// TAB SWITCH
+// ════════════════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-playground').style.display = tab === 'playground' ? '' : 'none';
+  document.getElementById('tab-sandbox').style.display    = tab === 'sandbox'    ? '' : 'none';
+  document.getElementById('tab-rolodex').style.display    = tab === 'rolodex'    ? '' : 'none';
+  document.querySelectorAll('.nav-tab').forEach((el,i) => {
+    el.classList.toggle('active',
+      (i===0 && tab==='playground') ||
+      (i===1 && tab==='sandbox')    ||
+      (i===2 && tab==='rolodex')
+    );
+  });
+  if (tab === 'rolodex') renderRolodex();
+  else renderGrid();
+}
+
+// ════════════════════════════════════════════════════════
+// GRID
+// ════════════════════════════════════════════════════════
+function renderGrid() {
+  const pg = document.getElementById('playground-grid');
+  const sb = document.getElementById('sandbox-grid');
+  if (!pg || !sb) return;
+  pg.innerHTML = ''; sb.innerHTML = '';
+
+  const searchInput = document.getElementById('project-search');
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+  const allActive = projects.filter(p => !p.archived);
+  const active    = query
+    ? allActive.filter(p =>
+        (p.name       || '').toLowerCase().includes(query) ||
+        (p.contractor || '').toLowerCase().includes(query) ||
+        (p.district   || '').toLowerCase().includes(query) ||
+        (p.scope      || '').toLowerCase().includes(query) ||
+        (p.pm         || '').toLowerCase().includes(query)
+      )
+    : allActive;
+
+  const archived = projects.filter(p => p.archived);
+
+  // Update result count
+  const countEl = document.getElementById('search-result-count');
+  const clearBtn = document.getElementById('project-search-clear');
+  if (query && countEl) {
+    countEl.style.display = '';
+    countEl.innerHTML = `<span>${active.length}</span> of ${allActive.length} project${allActive.length !== 1 ? 's' : ''}`;
+  } else if (countEl) {
+    countEl.style.display = 'none';
+  }
+  if (clearBtn) clearBtn.classList.toggle('visible', query.length > 0);
+
+  if (active.length === 0) {
+    pg.innerHTML = query
+      ? `<div class="empty-state">NO PROJECTS MATCH "<strong style="color:var(--ics-red)">${query}</strong>"</div>`
+      : '<div class="empty-state">NO ACTIVE PROJECTS — CLICK + NEW PROJECT</div>';
+  }
+  if (archived.length === 0) sb.innerHTML = '<div class="empty-state">NO ARCHIVED PROJECTS</div>';
+  active.forEach(p   => pg.appendChild(buildCard(p, false)));
+  archived.forEach(p => sb.appendChild(buildCard(p, true)));
+  renderOverdueBanner();
+}
+
+function filterProjects() { renderGrid(); }
+
+function clearProjectSearch() {
+  const input = document.getElementById('project-search');
+  if (input) { input.value = ''; input.focus(); }
+  renderGrid();
+}
+
+function buildCard(p, arch) {
+  const overdueFlag = checkAnyOverdue(p);
+  const card = document.createElement('div');
+  card.className = 'box-card';
+  card.onclick = () => openProject(p.id);
+  card.innerHTML = `
+    ${overdueFlag ? '<div class="overdue-badge">⚠ OVERDUE</div>' : ''}
+    <div class="box-card-top">
+      <div class="box-icon">
+        <div class="box-led ${arch ? 'archived' : ''}"></div>
+        <div class="box-diamond">ICS</div>
+      </div>
+    </div>
+    <div class="box-card-body">
+      <div class="proj-name">${p.name || 'Unnamed Project'}</div>
+      <div class="proj-sub">${p.district ? p.district + ' | ' : ''}${p.contractor || ''}</div>
+    </div>`;
+  return card;
+}
+
+function checkAnyOverdue(p) {
+  return (p.submittals||[]).some(s => s.submittalDate && s.status !== 'Approved' && s.submittalDate < today());
+}
+
+// ════════════════════════════════════════════════════════
+// NEW PROJECT
+// ════════════════════════════════════════════════════════
+function openNewProject() {
+  document.getElementById('new-project-overlay').classList.add('open');
+  document.getElementById('np-name').focus();
+}
+
+function closeNewProject() {
+  document.getElementById('new-project-overlay').classList.remove('open');
+  ['np-name','np-district','np-contractor','np-scope'].forEach(id => document.getElementById(id).value = '');
+  const npConEl = document.getElementById('np-contractor');
+  if (npConEl && npConEl.dataset) { delete npConEl.dataset.addr; delete npConEl.dataset.phone; delete npConEl.dataset.email; }
+  const npDd = document.getElementById('np-combobox-dropdown');
+  if (npDd) npDd.classList.remove('open');
+}
+
+function createProject() {
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) { alert('Project name is required.'); return; }
+  const npCon = document.getElementById('np-contractor');
+  const p = {
+    id: uid(), name,
+    district:       document.getElementById('np-district').value.trim(),
+    contractor:     npCon.value.trim(),
+    scope:          document.getElementById('np-scope').value.trim(),
+    contractorAddr: npCon.dataset.addr  || '',
+    phone:          npCon.dataset.phone || '',
+    email:          npCon.dataset.email || '',
+    siteAddr:'', pm:'', fieldLead:'', designer:'',
+    tasks: [],
+    submittals: [
+      { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
+      { id:uid(), type:'Shop Drawing',  system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
+      { id:uid(), type:'Closeouts',     system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
+    ],
+    notes: [], archived: false, created: now()
+  };
+  projects.push(p);
+  persistData(p);
+  closeNewProject();
+  renderGrid();
+  openProject(p.id);
+}
+
+// ════════════════════════════════════════════════════════
+// JOB CARD
+// ════════════════════════════════════════════════════════
+function openProject(id) {
+  const p = projects.find(x => x.id === id); if (!p) return;
+  activeProjectId = id;
+  document.getElementById('f-contractor').value      = p.contractor     || '';
+  document.getElementById('f-contractor-addr').value = p.contractorAddr || '';
+  document.getElementById('f-phone').value           = p.phone          || '';
+  document.getElementById('f-email').value           = p.email          || '';
+  document.getElementById('f-project-name').value    = p.name           || '';
+  document.getElementById('f-site-addr').value       = p.siteAddr       || '';
+  document.getElementById('f-district').value        = p.district       || '';
+  document.getElementById('f-pm').value              = p.pm             || '';
+  document.getElementById('f-field-lead').value      = p.fieldLead      || '';
+  document.getElementById('f-designer').value        = p.designer       || '';
+  document.getElementById('f-scope').value           = p.scope          || '';
+  renderTasks(p); renderSubmittals(p); renderNotes(p);
+  document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
+  document.getElementById('save-status').textContent = '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  activeProjectId = null;
+}
+
+// ════════════════════════════════════════════════════════
+// TASKS
+// ════════════════════════════════════════════════════════
+function renderTasks(p) {
+  const list = document.getElementById('task-list');
+  list.innerHTML = '';
+  const autoTasks = [];
+  (p.submittals||[]).forEach(s => {
+    if (s.submittalDate && s.status !== 'Approved' && s.submittalDate < today()) {
+      const sysLabel = s.system ? s.system + ' ' : '';
+      autoTasks.push({ id:'auto-'+s.id, text:`SUBMITTAL OVERDUE: ${s.type} ${sysLabel}— submitted ${s.submittalDate}, awaiting approval`, done:false, overdue:true });
+    }
+  });
+  const allTasks = [...autoTasks, ...(p.tasks||[])];
+  if (allTasks.length === 0) {
+    list.innerHTML = '<li style="color:var(--text-muted);font-size:12px;padding:8px 0;">No tasks queued.</li>';
+    return;
+  }
+  allTasks.forEach((t,i) => {
+    const li = document.createElement('li');
+    li.className = 'task-item' + (t.overdue ? ' overdue' : '');
+    li.innerHTML = `
+      <input type="checkbox" ${t.done?'checked':''} ${t.id.startsWith('auto-')?'disabled':''}
+        onchange="toggleTask('${t.id}')">
+      <span class="task-text ${t.overdue?'flag-overdue':''}"
+        style="${t.done?'text-decoration:line-through;color:var(--text-muted)':''}">
+        ${t.overdue ? '⚠ ' : i===0 && !t.overdue ? '▶ ' : ''}${t.text}
+      </span>
+      ${!t.id.startsWith('auto-') ? `<button class="task-del" onclick="deleteTask('${t.id}')">✕</button>` : ''}`;
+    list.appendChild(li);
+  });
+}
+
+function addTask() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const val = document.getElementById('new-task-input').value.trim(); if (!val) return;
+  p.tasks = p.tasks||[];
+  p.tasks.push({ id:uid(), text:val, done:false });
+  document.getElementById('new-task-input').value = '';
+  renderTasks(p);
+}
+
+function toggleTask(tid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const t = p.tasks.find(x => x.id === tid);
+  if (t) t.done = !t.done;
+  renderTasks(p);
+}
+
+function deleteTask(tid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.tasks = p.tasks.filter(x => x.id !== tid);
+  renderTasks(p);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('new-task-input').addEventListener('keydown', e => { if (e.key==='Enter') addTask(); });
+});
+
+// ════════════════════════════════════════════════════════
+// SUBMITTALS
+// ════════════════════════════════════════════════════════
+const SYSTEM_PRESETS = [
+  'Fire Alarm','Structured Cabling','Integrated Audio Visual',
+  'Integrated Communications','Intrusion Detection',
+  'Public Address (PA)','Audio Visual'
+];
+const sysComboBlurTimers = {};
+
+function buildSystemSelect(sid, currentSystem) {
+  return `
+    <div class="sys-combo-wrap" id="sys-wrap-${sid}">
+      <input type="text" class="sys-combo-input" id="sys-input-${sid}"
+        value="${currentSystem||''}"
+        placeholder="Select or type system..."
+        autocomplete="off"
+        oninput="sysComboFilter('${sid}')"
+        onfocus="sysComboOpen('${sid}')"
+        onblur="sysComboBlur('${sid}')"
+        onchange="updateSubmittal('${sid}','system',this.value)">
+      <span class="sys-combo-arrow">&#9660;</span>
+      <div class="sys-combo-dropdown" id="sys-dd-${sid}"></div>
+    </div>`;
+}
+
+function sysComboOpen(sid) { clearTimeout(sysComboBlurTimers[sid]); sysComboFilter(sid); }
+
+function sysComboFilter(sid) {
+  const input = document.getElementById('sys-input-'+sid);
+  const dd    = document.getElementById('sys-dd-'+sid);
+  if (!input || !dd) return;
+  const q = input.value.toLowerCase().trim();
+  const matches = SYSTEM_PRESETS.filter(s => !q || s.toLowerCase().includes(q));
+  dd.innerHTML = '';
+  if (matches.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'sys-combo-opt';
+    div.style.color = 'var(--text-muted)';
+    div.style.fontStyle = 'italic';
+    div.textContent = 'Custom entry — press Tab or Enter to confirm';
+    dd.appendChild(div);
+  } else {
+    matches.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'sys-combo-opt';
+      div.textContent = m;
+      div.addEventListener('mousedown', e => {
+        e.preventDefault();
+        input.value = m;
+        updateSubmittal(sid, 'system', m);
+        dd.classList.remove('open');
+      });
+      dd.appendChild(div);
+    });
+  }
+  dd.classList.add('open');
+}
+
+function sysComboBlur(sid) {
+  sysComboBlurTimers[sid] = setTimeout(() => {
+    const dd = document.getElementById('sys-dd-'+sid);
+    if (dd) dd.classList.remove('open');
+    const input = document.getElementById('sys-input-'+sid);
+    if (input) updateSubmittal(sid, 'system', input.value.trim());
+  }, 180);
+}
+
+function onSystemSelectChange(sid) { sysComboFilter(sid); }
+
+function renderSubmittals(p) {
+  const tbody = document.getElementById('submittal-tbody');
+  tbody.innerHTML = '';
+  (p.submittals||[]).forEach(s => {
+    const od = isOverdue(s.submittalDate, s.status);
+    const effectiveStatus = od && s.status !== 'Approved' ? 'Overdue' : s.status;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td data-label="Data Type"><input type="text" value="${s.type||''}" onchange="updateSubmittal('${s.id}','type',this.value)"></td>
+      <td data-label="System Type">${buildSystemSelect(s.id, s.system||'')}</td>
+      <td data-label="Submittal Date"><input type="date" value="${s.submittalDate||''}" onchange="updateSubmittal('${s.id}','submittalDate',this.value)"></td>
+      <td data-label="Status">
+        <select onchange="updateSubmittal('${s.id}','status',this.value)">
+          ${STATUS_STAGES.map(opt=>`<option ${s.status===opt?'selected':''}>${opt}</option>`).join('')}
+        </select>
+        <span class="status-badge ${getStatusClass(effectiveStatus)}">${effectiveStatus}</span>
+      </td>
+      <td data-label="Approved/Returned"><input type="date" value="${s.approvedDate||''}" onchange="updateSubmittal('${s.id}','approvedDate',this.value)"></td>
+      <td data-label="Notes"><input type="text" value="${s.notes||''}" placeholder="Notes..." onchange="updateSubmittal('${s.id}','notes',this.value)"></td>
+      <td data-label=""><button class="task-del" onclick="deleteSubmittal('${s.id}')">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateSubmittal(sid, field, val) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const s = p.submittals.find(x => x.id === sid);
+  if (s) s[field] = val;
+  renderTasks(p); renderSubmittals(p);
+}
+
+function addSubmittalRow() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.submittals.push({ id:uid(), type:'', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' });
+  renderSubmittals(p);
+}
+
+function deleteSubmittal(sid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.submittals = p.submittals.filter(x => x.id !== sid);
+  renderSubmittals(p); renderTasks(p);
+}
+
+// ════════════════════════════════════════════════════════
+// NOTES
+// ════════════════════════════════════════════════════════
+let noteExpandState = {};
+
+function renderNotes(p) {
+  const log = document.getElementById('notes-log');
+  log.innerHTML = '';
+  const notes = [...(p.notes||[])].reverse();
+  if (notes.length === 0) {
+    log.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0;">No entries yet.</div>';
+    return;
+  }
+  notes.forEach((n, i) => {
+    const isExpanded = noteExpandState[n.id] !== false;
+    const needsClamp = (n.text && n.text.split('\n').length > 3) || (n.text && n.text.length > 220);
+    const div = document.createElement('div');
+    div.className = 'note-entry';
+    div.style.borderLeftColor = i === 0 ? 'var(--ics-red)' : 'var(--border)';
+    const textClass = needsClamp && !isExpanded ? 'note-text-preview collapsed' : 'note-text-preview';
+    const expandBtn = needsClamp
+      ? `<button class="note-expand-btn" onclick="toggleNoteExpand('${n.id}')">${isExpanded ? '▲ Collapse' : '▼ Expand'}</button>`
+      : '';
+    const safeText = n.text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\n/g,'<br>');
+    div.innerHTML = `
+      <div class="note-ts">${n.ts}</div>
+      <div class="${textClass}" id="note-text-${n.id}">${safeText}</div>
+      <div class="note-actions" style="display:flex;gap:6px;align-items:center;margin-top:5px;">
+        ${expandBtn}
+        <span style="flex:1"></span>
+        <button class="note-view-btn" onclick="openNotePopup('${n.id}')">&#9998; Edit</button>
+        <button class="note-del" onclick="deleteNote('${n.id}')">✕ Remove</button>
+      </div>`;
+    log.appendChild(div);
+  });
+}
+
+function toggleNoteExpand(nid) {
+  noteExpandState[nid] = !(noteExpandState[nid] !== false);
+  const p = projects.find(x => x.id === activeProjectId);
+  if (p) renderNotes(p);
+}
+
+function addNote() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const val = document.getElementById('new-note-input').value.trim(); if (!val) return;
+  const dateField = document.getElementById('new-note-date').value;
+  let ts;
+  if (dateField) {
+    const [y,m,d] = dateField.split('-');
+    ts = m + '/' + d + '/' + y + ' [Backdated]';
+  } else {
+    ts = now();
+  }
+  p.notes = p.notes||[];
+  p.notes.push({ id:uid(), ts, text:val });
+  document.getElementById('new-note-input').value = '';
+  document.getElementById('new-note-date').value  = '';
+  renderNotes(p);
+  persistData(p);
+}
+
+function deleteNote(nid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.notes = p.notes.filter(x => x.id !== nid);
+  renderNotes(p);
+}
+
+function openNotePopup(nid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const n = p.notes.find(x => x.id === nid); if (!n) return;
+  activeNoteId = nid;
+  document.getElementById('note-popup-ts').textContent = n.ts;
+  document.getElementById('note-popup-textarea').value = n.text;
+  document.getElementById('note-popup-overlay').classList.add('open');
+  document.getElementById('note-popup-textarea').focus();
+}
+
+function closeNotePopup() {
+  document.getElementById('note-popup-overlay').classList.remove('open');
+  activeNoteId = null;
+}
+
+function saveNotePopup() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const n = p.notes.find(x => x.id === activeNoteId); if (!n) return;
+  const newText = document.getElementById('note-popup-textarea').value.trim();
+  if (!newText) return;
+  n.text = newText;
+  n.ts   = n.ts + ' (edited ' + now() + ')';
+  closeNotePopup();
+  renderNotes(p);
+  persistData(p);
+}
+
+// ════════════════════════════════════════════════════════
+// SAVE / ARCHIVE
+// ════════════════════════════════════════════════════════
+function saveProject() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.name           = document.getElementById('f-project-name').value.trim();
+  const titleEl    = document.getElementById('jc-project-title');
+  if (titleEl) titleEl.textContent = p.name || 'Unnamed Project';
+  p.contractor     = document.getElementById('f-contractor').value.trim();
+  p.contractorAddr = document.getElementById('f-contractor-addr').value.trim();
+  p.phone          = document.getElementById('f-phone').value.trim();
+  p.email          = document.getElementById('f-email').value.trim();
+  p.siteAddr       = document.getElementById('f-site-addr').value.trim();
+  p.district       = document.getElementById('f-district').value.trim();
+  p.pm             = document.getElementById('f-pm').value.trim();
+  p.fieldLead      = document.getElementById('f-field-lead').value.trim();
+  p.designer       = document.getElementById('f-designer').value.trim();
+  p.scope          = document.getElementById('f-scope').value.trim();
+  renderGrid();
+  persistData(p);
+  renderOverdueBanner();
+  document.getElementById('save-status').textContent = '';
+  showSaveToast(p.name || 'Project');
+}
+
+function archiveProject() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  if (!confirm(`Archive "${p.name}"? It will move to Sandbox.`)) return;
+  saveProject();
+  p.archived = true;
+  persistData(p);
+  closeModal();
+  renderGrid();
+}
+
+// ════════════════════════════════════════════════════════
+// REPORT GENERATOR
+// ════════════════════════════════════════════════════════
+function generateReport() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.name           = document.getElementById('f-project-name').value.trim() || p.name;
+  p.contractor     = document.getElementById('f-contractor').value.trim()   || p.contractor;
+  p.contractorAddr = document.getElementById('f-contractor-addr').value.trim();
+  p.phone          = document.getElementById('f-phone').value.trim();
+  p.email          = document.getElementById('f-email').value.trim();
+  p.siteAddr       = document.getElementById('f-site-addr').value.trim();
+  p.district       = document.getElementById('f-district').value.trim();
+  p.pm             = document.getElementById('f-pm').value.trim();
+  p.fieldLead      = document.getElementById('f-field-lead').value.trim();
+  p.designer       = document.getElementById('f-designer').value.trim();
+  p.scope          = document.getElementById('f-scope').value.trim();
+
+  const reportDate = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const reportTime = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+
+  const subRows = (p.submittals||[]).map(s => {
+    const od = isOverdue(s.submittalDate, s.status);
+    const effStatus = od && s.status !== 'Approved' ? 'Overdue' : (s.status || 'Pending');
+    return `<tr>
+      <td><strong>${s.type||'—'}</strong></td>
+      <td>${fmtDate(s.submittalDate)}</td>
+      <td><span class="rpt-status ${getRptStatusClass(effStatus)}">${effStatus}</span></td>
+      <td>${fmtDate(s.approvedDate)}</td>
+      <td style="color:#555">${s.notes||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const autoTasks = (p.submittals||[])
+    .filter(s => s.submittalDate && s.status !== 'Approved' && s.submittalDate < today())
+    .map(s => ({ text:`SUBMITTAL OVERDUE: ${s.type}${s.system?' '+s.system:''} — submitted ${s.submittalDate}, awaiting approval`, overdue:true }));
+  const manualTasks = (p.tasks||[]).filter(t => !t.done);
+  const allActiveTasks = [...autoTasks, ...manualTasks];
+
+  const taskRows = allActiveTasks.length === 0
+    ? '<div class="rpt-task-row" style="color:#888;font-style:italic;">No active tasks.</div>'
+    : allActiveTasks.map(t => `
+        <div class="rpt-task-row ${t.overdue?'rpt-overdue':''}">
+          <div class="rpt-task-bullet ${t.overdue?'overdue':''}"></div>
+          <div class="rpt-task-text ${t.overdue?'overdue':''}">${t.overdue?'⚠ ':''}${t.text}</div>
+        </div>`).join('');
+
+  const notesSorted = [...(p.notes||[])].reverse();
+  const noteRows = notesSorted.length === 0
+    ? '<div class="rpt-note-row" style="color:#888;font-style:italic;padding:10px 12px;">No notes logged.</div>'
+    : notesSorted.map(n => `<div class="rpt-note-row"><div class="rpt-note-ts">${n.ts}</div><div class="rpt-note-text">${n.text}</div></div>`).join('');
+
+  document.getElementById('report-container').innerHTML = `
+    <!-- REPEATING HEADER — prints on every page via position:fixed in print CSS -->
+    <div class="rpt-header-band">
+      <div class="rpt-logo-group">
+        <div class="rpt-diamond">ICS</div>
+        <h1>ICS SERVICE CO. <span>// Project Summary Report</span></h1>
+      </div>
+      <div class="rpt-header-meta">
+        Generated: ${reportDate}<br>
+        Time: ${reportTime}<br>
+        ${p.name||'Unnamed Project'}
+      </div>
+    </div>
+
+    <!-- SUBHEADER — project identification strip, first page only -->
+    <div class="rpt-subheader">
+      <div>
+        <div class="rpt-project-title">${p.name||'Unnamed Project'}</div>
+        <div class="rpt-project-meta">${p.district?p.district+' &nbsp;|&nbsp; ':''}${p.contractor||''}</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:#aaa;">
+        ${p.siteAddr?'Site: '+p.siteAddr+'<br>':''}${p.pm?'PM: '+p.pm:''}
+      </div>
+    </div>
+
+    <!-- BODY WRAP — pushed down on print to clear fixed header -->
+    <div class="rpt-body-wrap">
+      <div class="rpt-body">
+
+        <!-- Project Info Grid -->
+        <div class="rpt-info-strip">
+          <div class="rpt-info-cell"><div class="rpt-info-label">Project Manager</div><div class="rpt-info-value">${p.pm||'—'}</div></div>
+          <div class="rpt-info-cell"><div class="rpt-info-label">Field Lead</div><div class="rpt-info-value">${p.fieldLead||'—'}</div></div>
+          <div class="rpt-info-cell"><div class="rpt-info-label">Designer</div><div class="rpt-info-value">${p.designer||'—'}</div></div>
+        </div>
+        <div class="rpt-info-strip" style="margin-top:-20px;margin-bottom:0">
+          <div class="rpt-info-cell"><div class="rpt-info-label">Contractor</div><div class="rpt-info-value">${p.contractor||'—'}</div></div>
+          <div class="rpt-info-cell"><div class="rpt-info-label">Phone</div><div class="rpt-info-value">${p.phone||'—'}</div></div>
+          <div class="rpt-info-cell"><div class="rpt-info-label">Email</div><div class="rpt-info-value">${p.email||'—'}</div></div>
+        </div>
+        ${p.scope?`<div class="rpt-scope-strip"><div class="rpt-info-label">Spec Sections / Systems Scope</div><div class="rpt-scope-value">${p.scope}</div></div>`:''}
+
+        <!-- Submittals -->
+        <div class="rpt-section-header"><div class="rpt-dot"></div> Submittal Status</div>
+        <table class="rpt-table">
+          <thead><tr><th>Data Type</th><th>Submittal Date</th><th>Status</th><th>Date Approved / Returned</th><th>Notes</th></tr></thead>
+          <tbody>${subRows||'<tr><td colspan="5" style="color:#888;font-style:italic;padding:10px">No submittals on record.</td></tr>'}</tbody>
+        </table>
+
+        <!-- Active Tasks -->
+        <div class="rpt-section-header"><div class="rpt-dot"></div> Active Tasks — What's Next</div>
+        <div class="rpt-task-list">${taskRows}</div>
+
+        <!-- General Notes -->
+        <div class="rpt-section-header"><div class="rpt-dot"></div> General Notes — Running Log</div>
+        <div class="rpt-notes-list">${noteRows}</div>
+
+      </div>
+    </div>
+
+    <!-- FOOTER — fixed to bottom of every page in print -->
+    <div class="rpt-footer-band">
+      <div><strong>ICS SERVICE CO.</strong> &nbsp;—&nbsp; Confidential Project Summary</div>
+      <div>Report ID: ${uid().toUpperCase()} &nbsp;|&nbsp; ${reportDate}</div>
+    </div>
+
+    <!-- SCREEN-ONLY CONTROLS -->
+    <div class="rpt-action-bar">
+      <button class="rpt-close-btn" onclick="closeReport()">✕ Close</button>
+      <button class="rpt-print-btn" onclick="window.print()">&#128438; Print / Save PDF</button>
+    </div>`;
+  document.getElementById('report-overlay').classList.add('open');
+}
+
+function closeReport() { document.getElementById('report-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════
+// OVERDUE BANNER
+// ════════════════════════════════════════════════════════
+let dismissedOverdueKeys = new Set();
+
+function getOverdueItems() {
+  const items = [];
+  const t = today();
+  projects.filter(p => !p.archived).forEach(p => {
+    (p.submittals||[]).forEach(s => {
+      if (!s.submittalDate || s.status === 'Approved' || s.submittalDate >= t) return;
+      const key = p.id + '-' + s.id;
+      if (dismissedOverdueKeys.has(key)) return;
+      const days = Math.floor((new Date(t) - new Date(s.submittalDate)) / 86400000);
+      items.push({ key, projectName:p.name||'Unnamed Project', systemType:s.system||'—', dataType:s.type||'—', status:s.status||'Pending', days });
+    });
+  });
+  return items;
+}
+
+function renderOverdueBanner() {
+  const banner    = document.getElementById('overdue-banner');
+  const container = document.getElementById('banner-items');
+  if (!banner || !container) return;
+  const items = getOverdueItems();
+  if (items.length === 0) { banner.classList.remove('visible'); return; }
+  container.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'banner-item';
+    div.innerHTML = `
+      <div class="banner-item-dot"></div>
+      <div class="banner-item-text">
+        <strong>${item.projectName}</strong>
+        &nbsp;·&nbsp;${item.systemType}
+        &nbsp;·&nbsp;${item.dataType}
+        &nbsp;·&nbsp;<span class="bi-days">${item.days}d overdue</span>
+        &nbsp;·&nbsp;<span style="color:var(--text-muted)">${item.status}</span>
+      </div>
+      <button class="banner-item-dismiss" onclick="dismissBannerItem('${item.key}')" title="Dismiss">✕</button>`;
+    container.appendChild(div);
+  });
+  banner.classList.add('visible');
+}
+
+function dismissBannerItem(key) { dismissedOverdueKeys.add(key); renderOverdueBanner(); }
+function dismissAllBanner() { getOverdueItems().forEach(i => dismissedOverdueKeys.add(i.key)); renderOverdueBanner(); }
+
+// ════════════════════════════════════════════════════════
+// SAVE TOAST
+// ════════════════════════════════════════════════════════
+let toastTimer = null;
+function showSaveToast(projectName) {
+  const toast = document.getElementById('save-toast');
+  const body  = document.getElementById('toast-body');
+  if (!toast || !body) return;
+  body.textContent = projectName + ' — ' + now();
+  toast.className = 'show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.className = 'hide';
+    setTimeout(() => { toast.className = ''; }, 320);
+  }, 3000);
+}
+
+// ════════════════════════════════════════════════════════
+// CONTRACTOR ROLODEX
+// ════════════════════════════════════════════════════════
+function renderRolodex() {
+  const grid = document.getElementById('rolodex-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (contractors.length === 0) {
+    grid.innerHTML = '<div class="empty-state">NO CONTRACTORS — CLICK + ADD CONTRACTOR</div>';
+    return;
+  }
+  contractors.forEach(c => grid.appendChild(buildContractorCard(c)));
+}
+
+function buildContractorCard(c) {
+  const card = document.createElement('div');
+  card.className = 'contractor-card';
+  const logoHTML = c.logo
+    ? `<img src="${c.logo}" alt="${c.name}">`
+    : `<div class="contractor-logo-placeholder"><div class="logo-icon">&#127970;</div><span>No Logo</span></div>`;
+  card.innerHTML = `
+    <div class="contractor-card-top" onclick="openContractorModal('${c.id}')" title="Click to edit">
+      <input type="file" class="logo-upload-input" id="logo-upload-${c.id}" accept="image/*" onchange="uploadCardLogo('${c.id}', this)">
+      ${logoHTML}
+    </div>
+    <div class="contractor-card-body">
+      <div class="con-name">${c.name||'—'}</div>
+      <div class="con-detail">
+        ${c.address?`<span>&#128205; ${c.address}</span>`:''}
+        ${c.phone  ?`<span>&#128222; ${c.phone}</span>`:''}
+        ${c.email  ?`<span>&#9993; ${c.email}</span>`:''}
+      </div>
+    </div>
+    <div class="contractor-card-actions">
+      <button class="con-edit-btn" onclick="openContractorModal('${c.id}')">&#9998; Edit</button>
+      <button class="con-del-btn"  onclick="deleteContractor('${c.id}')">&#128465; Delete</button>
+    </div>`;
+  return card;
+}
+
+function uploadCardLogo(cid, input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const c = contractors.find(x => x.id === cid);
+    if (c) { c.logo = e.target.result; persistContractors(c); renderRolodex(); }
+  };
+  reader.readAsDataURL(file);
+}
+
+function openContractorModal(cid) {
+  editingContractorId = cid;
+  cmLogoData = null;
+  const isEdit = cid !== null;
+  const c = isEdit ? contractors.find(x => x.id === cid) : null;
+  document.getElementById('cm-modal-title').textContent = isEdit ? 'EDIT CONTRACTOR' : 'ADD CONTRACTOR';
+  document.getElementById('cm-name').value    = c ? c.name    : '';
+  document.getElementById('cm-address').value = c ? c.address : '';
+  document.getElementById('cm-phone').value   = c ? c.phone   : '';
+  document.getElementById('cm-email').value   = c ? c.email   : '';
+  const preview = document.getElementById('cm-logo-preview');
+  if (c && c.logo) { preview.innerHTML = `<img src="${c.logo}" alt="logo">`; cmLogoData = c.logo; }
+  else             { preview.innerHTML = '<span class="cm-logo-hint">Click to upload logo</span>'; }
+  document.getElementById('contractor-modal-overlay').classList.add('open');
+  document.getElementById('cm-name').focus();
+}
+
+function closeContractorModal() {
+  document.getElementById('contractor-modal-overlay').classList.remove('open');
+  editingContractorId = null; cmLogoData = null;
+}
+
+function saveContractor() {
+  const name = document.getElementById('cm-name').value.trim();
+  if (!name) { alert('Contractor name is required.'); return; }
+  let saved;
+  if (editingContractorId) {
+    const c = contractors.find(x => x.id === editingContractorId);
+    if (c) {
+      c.name    = name;
+      c.address = document.getElementById('cm-address').value.trim();
+      c.phone   = document.getElementById('cm-phone').value.trim();
+      c.email   = document.getElementById('cm-email').value.trim();
+      if (cmLogoData) c.logo = cmLogoData;
+      saved = c;
+    }
+  } else {
+    saved = {
+      id: uid(), name,
+      address: document.getElementById('cm-address').value.trim(),
+      phone:   document.getElementById('cm-phone').value.trim(),
+      email:   document.getElementById('cm-email').value.trim(),
+      logo:    cmLogoData || null
+    };
+    contractors.push(saved);
+  }
+  persistContractors(saved);
+  closeContractorModal();
+  renderRolodex();
+}
+
+function deleteContractor(cid) {
+  const c = contractors.find(x => x.id === cid); if (!c) return;
+  if (!confirm(`Remove "${c.name}" from the Rolodex?`)) return;
+  contractors = contractors.filter(x => x.id !== cid);
+  deleteContractorFromFirestore(cid);
+  persistLocal();
+  renderRolodex();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const upload = document.getElementById('cm-logo-upload');
+  if (upload) {
+    upload.addEventListener('change', function() {
+      const file = this.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        cmLogoData = e.target.result;
+        const preview = document.getElementById('cm-logo-preview');
+        preview.innerHTML = `<img src="${cmLogoData}" alt="logo">`;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  document.getElementById('cm-logo-preview').addEventListener('click', () => {
+    document.getElementById('cm-logo-upload').click();
+  });
+});
+
+// ════════════════════════════════════════════════════════
+// COMBOBOX ENGINE
+// ════════════════════════════════════════════════════════
+let comboboxBlurTimer = {};
+
+function getContractorMatches(query) {
+  if (!query) return contractors;
+  const q = query.toLowerCase();
+  return contractors.filter(c => c.name && c.name.toLowerCase().includes(q));
+}
+
+function comboboxOpen(prefix)  { comboboxFilter(prefix); }
+
+function comboboxFilter(prefix) {
+  const input    = document.getElementById(prefix === 'np' ? 'np-contractor' : 'f-contractor');
+  const dropdown = document.getElementById(prefix + '-combobox-dropdown');
+  const matches  = getContractorMatches(input.value.trim());
+  dropdown.innerHTML = '';
+  if (matches.length === 0) {
+    dropdown.innerHTML = '<div class="combobox-empty">No contractors found — type to enter manually or add via Rolodex.</div>';
+  } else {
+    matches.forEach(c => {
+      const initials = (c.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const logoHTML = c.logo ? `<img src="${c.logo}" alt="${initials}">` : `<span class="cb-initials">${initials}</span>`;
+      const opt = document.createElement('div');
+      opt.className = 'combobox-option';
+      opt.innerHTML = `
+        <div class="combobox-option-logo">${logoHTML}</div>
+        <div class="combobox-option-info">
+          <div class="combobox-option-name">${c.name}</div>
+          <div class="combobox-option-sub">${[c.phone,c.address].filter(Boolean).join(' · ')}</div>
+        </div>`;
+      opt.addEventListener('mousedown', e => { e.preventDefault(); comboboxSelect(prefix, c); });
+      dropdown.appendChild(opt);
+    });
+  }
+  dropdown.classList.add('open');
+}
+
+function comboboxSelect(prefix, c) {
+  document.getElementById(prefix + '-combobox-dropdown').classList.remove('open');
+  if (prefix === 'np') {
+    document.getElementById('np-contractor').value = c.name;
+    document.getElementById('np-contractor').dataset.addr  = c.address || '';
+    document.getElementById('np-contractor').dataset.phone = c.phone   || '';
+    document.getElementById('np-contractor').dataset.email = c.email   || '';
+  } else {
+    document.getElementById('f-contractor').value      = c.name;
+    document.getElementById('f-contractor-addr').value = c.address || '';
+    document.getElementById('f-phone').value           = c.phone   || '';
+    document.getElementById('f-email').value           = c.email   || '';
+  }
+}
+
+function comboboxBlur(prefix) {
+  comboboxBlurTimer[prefix] = setTimeout(() => {
+    const dd = document.getElementById(prefix + '-combobox-dropdown');
+    if (dd) dd.classList.remove('open');
+  }, 180);
+}
+
+function comboboxClear(prefix) {
+  const input = document.getElementById(prefix === 'np' ? 'np-contractor' : 'f-contractor');
+  input.value = '';
+  if (input.dataset) { delete input.dataset.addr; delete input.dataset.phone; delete input.dataset.email; }
+  const dd = document.getElementById(prefix + '-combobox-dropdown');
+  if (dd) dd.classList.remove('open');
+  input.focus();
+}
+
+
+// ════════════════════════════════════════════════════════
+// PRE-LOADED PROJECT DATA (extracted from ICS Master Tracker)
+// On first load, if Firestore is empty, these seed projects
+// are pushed to cloud and stored locally.
+// ════════════════════════════════════════════════════════
+const SEED_PROJECTS = [
+  {
+    id: 'seed-sonora-hs-science',
+    name: 'FJUHSD Sonora HS Science CR Mod',
+    contractor: 'S&SK',
+    contractorAddr: '',
+    phone: '',
+    email: '',
+    siteAddr: '401 S Palm Street, La Habra, CA 90631',
+    district: 'FJUHSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    scope: '27 10 00 Structured Cabling\n27 51 23 Public Address IC System\n28 16 00 Intrusion Alarm System\n28 31 00 Fire Detection & Alarm\nT4.01 Assistive Listening\nPer Plan TV Locations, HDMI',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'sonora-t1', text: 'Submittal Booklet — Structured Cabling — Corrections — Jenn', done: false },
+      { id: 'sonora-t2', text: 'Submittal Booklet — Public Address System — Submitted — Jenn', done: false },
+      { id: 'sonora-t3', text: 'Submittal Booklet — Intrusion Alarm System — Submitted — Jenn', done: false },
+      { id: 'sonora-t4', text: 'Submittal Booklet — Assistive Listening — Submitted — Jenn', done: false },
+      { id: 'sonora-t5', text: 'Submittal Booklet — TV Locations — Pending', done: false },
+      { id: 'sonora-t6', text: 'Shop Drawings — Structured Cabling — Submitted — Aaron', done: false },
+      { id: 'sonora-t7', text: 'Shop Drawings — Public Address System — Aaron', done: false },
+      { id: 'sonora-t8', text: 'Shop Drawings — Intrusion Alarm System — Aaron', done: false },
+      { id: 'sonora-t9', text: 'Shop Drawings — Fire Detection & Alarm — Aaron', done: false },
+      { id: 'sonora-t10', text: 'Shop Drawings — TV Locations — Aaron', done: false },
+    ],
+    submittals: [
+      { id: 'sonora-s1', type: 'Submittal Booklet', system: 'Structured Cabling',    submittalDate: '2026-05-20', status: 'Revise & Resubmit', approvedDate: '2026-05-21', notes: 'Returned 6/22/26 with corrections to product data' },
+      { id: 'sonora-s2', type: 'Submittal Booklet', system: 'Public Address System',  submittalDate: '2026-05-20', status: 'Approved',           approvedDate: '2026-05-21', notes: 'No exceptions taken' },
+      { id: 'sonora-s3', type: 'Submittal Booklet', system: 'Intrusion Alarm System', submittalDate: '2026-05-20', status: 'Approved',           approvedDate: '2026-05-21', notes: 'Furnish as Corrected. Use Bosch DS9370 motion' },
+      { id: 'sonora-s4', type: 'Submittal Booklet', system: 'Assistive Listening',    submittalDate: '2026-05-20', status: 'Approved',           approvedDate: '2026-05-21', notes: 'Furnish as Corrected' },
+      { id: 'sonora-s5', type: 'Submittal Booklet', system: 'Fire Detection & Alarm', submittalDate: '2026-05-19', status: 'Approved',           approvedDate: '',           notes: '' },
+      { id: 'sonora-s6', type: 'Shop Drawing',      system: 'Fire Detection & Alarm', submittalDate: '',           status: 'Internal Review',    approvedDate: '',           notes: '' },
+      { id: 'sonora-s7', type: 'Shop Drawing',      system: 'Structured Cabling',     submittalDate: '2026-06-29', status: 'Approved',           approvedDate: '',           notes: 'NET — corrections to unused notes to be renumbered for as-builts' },
+      { id: 'sonora-s8', type: 'Shop Drawing',      system: 'Intrusion Alarm System', submittalDate: '2026-06-30', status: 'Submitted',          approvedDate: '',           notes: '' },
+    ],
+    notes: [
+      { id: 'sonora-n1', ts: '04/30/2026 [Backdated]', text: 'Received email from SS&K to proceed with Fire Alarm and low voltage submittal booklet, and request any files needed such as CAD Files' },
+      { id: 'sonora-n2', ts: '05/06/2026 [Backdated]', text: 'Received CAD Files' },
+      { id: 'sonora-n3', ts: '05/20/2026 [Backdated]', text: 'Received RFI 020 Technology Conduit. Acceptable to have the same size conduit between portables in lieu of wall mounted cabinet' },
+      { id: 'sonora-n4', ts: '05/20/2026 [Backdated]', text: 'Jenn submitted Structured Cabling, Intrusion Detection, and PA system product data documents for review and approval' },
+      { id: 'sonora-n5', ts: '06/03/2026 [Backdated]', text: 'Printed Bid Crew set for FA, Tech, and Elec' },
+      { id: 'sonora-n6', ts: '06/05/2026 [Backdated]', text: 'Fire Alarm shop drawings in review w/ Laurence' },
+      { id: 'sonora-n7', ts: '06/25/2026 [Backdated]', text: 'Sent email to Jenn to see if I can be of assistance on resubmitting the product data for structured cabling' },
+      { id: 'sonora-n8', ts: '06/30/2026 [Backdated]', text: 'Received drawings for Structured Cabling to update sheet index, remove unused notes (renumber if necessary) and correct legibility of detail notes on sheet T4.01' },
+    ]
+  },
+  {
+    id: 'seed-auhsd-western-interim',
+    name: 'AUHSD-Western HS Interim Housing',
+    contractor: 'Mobile Modular',
+    contractorAddr: '',
+    phone: '',
+    email: '',
+    siteAddr: '501 S. Western Drive, Anaheim, CA 92804',
+    district: 'AUHSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    scope: '27 13 00 Comm Backbone Cabling (Leviton Berktek Certified Dealer)\n27 15 00 Comm Horizontal Cabling (Leviton Berktek Certified Dealer)\n27 20 00 Classroom AV\n28 16 00 Security System (DMP Dealer)\n28 46 00 Fire Alarm System',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'western-t1', text: 'Shop Drawings — Classroom AV — Not Started — Aaron — HIGH', done: false },
+      { id: 'western-t2', text: 'Shop Drawings — Security System — Corrections — Aaron — HIGH', done: false },
+    ],
+    submittals: [
+      { id: 'western-s1', type: 'Submittal Booklet', system: 'Fire Alarm System',     submittalDate: '2026-05-22', status: 'Submitted', approvedDate: '',           notes: '' },
+      { id: 'western-s2', type: 'Submittal Booklet', system: 'Security System',       submittalDate: '2026-05-22', status: 'Approved',  approvedDate: '2026-06-02', notes: '' },
+      { id: 'western-s3', type: 'Submittal Booklet', system: 'Classroom AV',          submittalDate: '2026-05-22', status: 'Approved',  approvedDate: '2026-06-02', notes: '' },
+      { id: 'western-s4', type: 'Submittal Booklet', system: 'Communication System',  submittalDate: '',           status: 'Approved',  approvedDate: '2026-06-25', notes: '' },
+      { id: 'western-s5', type: 'Shop Drawing',      system: 'Fire Alarm System',     submittalDate: '',           status: 'Approved',  approvedDate: '2026-06-23', notes: '' },
+      { id: 'western-s6', type: 'Shop Drawing',      system: 'Security System',       submittalDate: '',           status: 'Approved',  approvedDate: '2026-06-23', notes: 'Resubmitted per corrections 6-23-26, returned approved 6-24-26' },
+      { id: 'western-s7', type: 'Shop Drawing',      system: 'Communication System',  submittalDate: '',           status: 'Approved',  approvedDate: '2026-06-23', notes: 'RFI-07 sent to clarify HDMI locations. Projector locations included in SCS shop drawings' },
+    ],
+    notes: [
+      { id: 'western-n1', ts: '05/18/2026 [Backdated]', text: 'Created Home Folder shortcut for Team members. Printed Estimate and saved in digital folder and manual folder.' },
+      { id: 'western-n2', ts: '05/18/2026 [Backdated]', text: 'Extracted Spec sections from Specifications and accurately labeled and printed in binder.' },
+      { id: 'western-n3', ts: '05/18/2026 [Backdated]', text: 'Created CAD folder for shop drawings when CAD files come in.' },
+      { id: 'western-n4', ts: '05/18/2026 [Backdated]', text: 'Requested CAD Files.' },
+      { id: 'western-n5', ts: '06/05/2026 [Backdated]', text: 'Received CAD files from Mitch, Electrical, Architectural — no Fire Alarm files. Called and asked him to send over the fire alarm CAD files.' },
+      { id: 'western-n6', ts: '06/10/2026 [Backdated]', text: 'Work on Fire Alarm Shop Drawings.' },
+      { id: 'western-n7', ts: '06/11/2026 [Backdated]', text: 'Work on Security and Communications Shop Drawings. All systems ready for internal review.' },
+      { id: 'western-n8', ts: '06/15/2026 [Backdated]', text: 'Submitted shop drawings Communication, Intrusion, and Fire for review and approval.' },
+      { id: 'western-n9', ts: '06/23/2026 [Backdated]', text: 'Received Approved Shop Drawings for Communications and Fire Alarm. Fire alarm Product Data noted as make corrections as noted (resubmittal not required). Security shop drawings returned Revise and Resubmit due to scope change removing motion detectors, electric strikes, and door contacts. Keypads to remain at each door per Architect direction.' },
+    ]
+  },
+  {
+    id: 'seed-rcoe-jurupa-ms',
+    name: 'RCOE-Jurupa MS West Special Ed Facility',
+    contractor: 'Spec Construction',
+    contractorAddr: '',
+    phone: '',
+    email: '',
+    siteAddr: '',
+    district: 'RCOE',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    scope: '27 10 00 CAT6A Structured Cabling (Leviton/Berktek)\n27 41 16 Integrated Audio Visual (Extron/Epson)\n27 51 23 Intercommunication (IC)\n28 16 00 Intrusion Detection (DMP)\n28 31 00 Fire Alarm System (Silent Knight)\nAssistive Listening',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'jurupa-t1', text: 'CAD Request — Fire Alarm — Submitted — Aaron — HIGH', done: false },
+      { id: 'jurupa-t2', text: 'CAD Request — Technology — Submitted — Aaron — HIGH', done: false },
+    ],
+    submittals: [
+      { id: 'jurupa-s1', type: 'CAD Request', system: 'Fire Alarm System', submittalDate: '', status: 'Submitted', approvedDate: '', notes: '' },
+      { id: 'jurupa-s2', type: 'CAD Request', system: 'Technology',        submittalDate: '', status: 'Submitted', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'jurupa-n1', ts: '06/25/2026 [Backdated]', text: 'Submitted Request for CAD files.' },
+    ]
+  }
+];
+
+async function seedProjectsIfEmpty() {
+  // Only seed if Firestore has no projects yet
+  try {
+    const snap = await db.collection(FS_PROJECTS).limit(1).get();
+    if (!snap.empty) return; // Data already exists — skip seeding
+
+    // Firestore is empty — push seed projects up
+    const batch = db.batch();
+    SEED_PROJECTS.forEach(p => {
+      batch.set(db.collection(FS_PROJECTS).doc(p.id), p);
+    });
+    await batch.commit();
+    projects = [...SEED_PROJECTS];
+    persistLocal();
+    console.log('ICS CRM: Seed projects pushed to Firestore.');
+  } catch(e) {
+    // Firestore unavailable — load seed data locally at minimum
+    if (projects.length === 0) {
+      projects = [...SEED_PROJECTS];
+      persistLocal();
+    }
+    console.warn('ICS CRM: Seed via Firestore failed, loaded locally.', e);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// INIT — only runs after successful authentication
+// (called from auth.onAuthStateChanged once user is confirmed)
+// ════════════════════════════════════════════════════════
+async function initializeCRMData() {
+  loadLocal();            // Paint UI immediately from local cache
+  renderGrid();           // Show locally cached data right away
+  renderOverdueBanner();
+  await seedProjectsIfEmpty(); // Push seed data if Firestore is empty
+  loadFromFirestore();    // Then pull Firestore and refresh (async)
+}
+</script>
+
+</div> <!-- /#app-shell -->
+</body>
+</html>
