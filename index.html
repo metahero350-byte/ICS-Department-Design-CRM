@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
 
 <style>
@@ -639,6 +640,11 @@
   .doclink-open-btn { background: transparent; border: 1px solid var(--border); color: var(--ics-red); border-radius: 2px; padding: 6px 10px; cursor: pointer; font-size: 12px; flex-shrink: 0; transition: border-color 0.15s; }
   .doclink-open-btn:hover { border-color: var(--ics-red); }
   .doclink-open-btn:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
+  .doclink-dropzone { flex: 1; border: 1px dashed var(--border); border-radius: 2px; padding: 6px 10px; font-size: 11px; color: var(--text-muted); text-align: center; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  .doclink-dropzone.drag-over { border-color: var(--ics-red); color: var(--ics-red); }
+  .doclink-file-input { display: none; }
+  .doclink-replace { font-size: 10px; color: var(--text-muted); cursor: pointer; text-decoration: underline; flex-shrink: 0; }
+  .doclink-replace:hover { color: var(--ics-red); }
 
   /* ─── OVERDUE NOTIFICATION BANNER ─── */
   #overdue-banner { display: none; background: #1a0505; border-bottom: 2px solid var(--ics-red); padding: 0; position: sticky; top: 58px; z-index: 90; overflow: hidden; }
@@ -1449,6 +1455,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth      = firebase.auth();
 const db        = firebase.firestore();
+const storage   = firebase.storage();
 const analytics = firebase.analytics();
 
 const FS_PROJECTS    = 'ics_projects';
@@ -1884,7 +1891,7 @@ function createProject() {
     pmSiteLink:'',
     gcPmName:'', gcPmEmail:'', gcPmPhone:'',
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
-    links: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
+    docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2730,24 +2737,59 @@ const DOC_LINK_FIELDS = [
 function renderDocLinks(p) {
   const grid = document.getElementById('doclinks-grid');
   if (!grid) return;
-  p.links = p.links || {};
+  p.docLinks = p.docLinks || p.links || {};
   grid.innerHTML = '';
   DOC_LINK_FIELDS.forEach(f => {
-    const val = p.links[f.key] || '';
+    const url = p.docLinks[f.key] || '';
     const row = document.createElement('div');
     row.className = 'doclink-row';
-    row.innerHTML = `
-      <label>${f.label}</label>
-      <input type="text" id="doclink-${f.key}" value="${val.replace(/"/g,'&quot;')}" placeholder="https://..." onchange="updateDocLink('${f.key}', this.value)">
-      <button type="button" class="doclink-open-btn" onclick="openLinkField('doclink-${f.key}')" title="Open ${f.label}">&#8599;</button>`;
+    row.innerHTML = url
+      ? `<label>${f.label}</label>
+         <button type="button" class="doclink-open-btn" onclick="window.open('${url}','_blank','noopener')">&#8599; Open</button>
+         <label class="doclink-replace" for="doc-file-${f.key}">Replace</label>
+         <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">`
+      : `<label>${f.label}</label>
+         <div class="doclink-dropzone" id="doclink-zone-${f.key}"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="docDrop(event,'${f.key}')"
+           onclick="document.getElementById('doc-file-${f.key}').click()">Drop file or click to upload</div>
+         <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">`;
     grid.appendChild(row);
   });
 }
 
-function updateDocLink(key, val) {
+function docDrop(e, key) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) uploadDocFile(key, file);
+}
+
+function docFileSelected(key, input) {
+  const file = input.files && input.files[0];
+  if (file) uploadDocFile(key, file);
+  input.value = '';
+}
+
+async function uploadDocFile(key, file) {
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
-  p.links = p.links || {};
-  p.links[key] = val.trim();
+  const zone = document.getElementById('doclink-zone-'+key);
+  if (zone) zone.textContent = 'Uploading…';
+  try {
+    const path = `project-docs/${p.id}/${key}_${Date.now()}_${file.name}`;
+    const ref  = storage.ref().child(path);
+    await ref.put(file);
+    const url  = await ref.getDownloadURL();
+    p.docLinks = p.docLinks || {};
+    p.docLinks[key] = url;
+    persistData(p);
+    renderDocLinks(p);
+  } catch(err) {
+    console.warn('ICS CRM: doc upload failed', err);
+    alert('Upload failed: ' + (err.message || err));
+    renderDocLinks(p);
+  }
 }
 
 
@@ -3413,7 +3455,7 @@ const IMPORT_BATCH3_PROJECTS = [
     pmSiteLink: '',
     gcPmName: '', gcPmEmail: '', gcPmPhone: '',
     gcForemanName: '', gcForemanEmail: '', gcForemanPhone: '',
-    links: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
+    docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     specSection: 'Fire Alarm Per Plan',
     systems: '',
     scope: 'Fire Alarm Per Plan',
