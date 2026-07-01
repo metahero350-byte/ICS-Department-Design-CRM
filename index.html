@@ -649,6 +649,10 @@
   .doclink-file-input { display: none; }
   .doclink-replace { font-size: 10px; color: var(--text-muted); cursor: pointer; text-decoration: underline; flex-shrink: 0; }
   .doclink-replace:hover { color: var(--ics-red); }
+  .sysplan-label-input { width: 130px; flex-shrink: 0; background: var(--surface3); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none; border-radius: 2px; }
+  .sysplan-label-input:focus { border-color: var(--ics-red); }
+  .sysplan-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 4px; flex-shrink: 0; }
+  .sysplan-del:hover { color: var(--ics-red); }
 
   /* ─── OVERDUE NOTIFICATION BANNER ─── */
   #overdue-banner { display: none; background: #1a0505; border-bottom: 2px solid var(--ics-red); padding: 0; position: sticky; top: 58px; z-index: 90; overflow: hidden; }
@@ -1306,6 +1310,14 @@
         </div>
 
         <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-sysplans" onclick="toggleSection('sec-sysplans')">System-Specific Plans<span class="chevron">&#9662;</span></div>
+          <div id="sec-sysplans">
+          <div class="doclinks-grid" id="system-plans-list"></div>
+          <button class="add-sub-btn" onclick="addSystemPlan()">+ Add Plan</button>
+          </div>
+        </div>
+
+        <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-notes" onclick="toggleSection('sec-notes')">General Notes — Running Log<span class="chevron">&#9662;</span></div>
           <div id="sec-notes">
           <div class="notes-log" id="notes-log"></div>
@@ -1912,6 +1924,7 @@ function createProject() {
     gcPmName:'', gcPmEmail:'', gcPmPhone:'',
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
+    systemPlans: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -1934,7 +1947,7 @@ function createProject() {
 // COLLAPSIBLE JOB CARD SECTIONS
 // ════════════════════════════════════════════════════════
 const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
-const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-notes'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-sysplans','sec-notes'];
 
 function setSectionState(id, collapsed) {
   const content = document.getElementById(id);
@@ -1976,7 +1989,7 @@ function openProject(id) {
   document.getElementById('f-designer').value        = p.designer       || '';
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
-  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p);
+  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p);
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
   resetJobCardSections();
@@ -2850,6 +2863,94 @@ async function uploadDocFile(key, file) {
     console.warn('ICS CRM: doc upload failed', err);
     alert('Upload failed: ' + (err.message || err.code || err));
     renderDocLinks(p);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// SYSTEM-SPECIFIC PLANS — dynamic labeled link/upload list
+// Stored as p.systemPlans = [{ id, label, url }]
+// ════════════════════════════════════════════════════════
+function renderSystemPlans(p) {
+  const wrap = document.getElementById('system-plans-list');
+  if (!wrap) return;
+  p.systemPlans = p.systemPlans || [];
+  wrap.innerHTML = '';
+  p.systemPlans.forEach(sp => {
+    const row = document.createElement('div');
+    row.className = 'doclink-row';
+    const zoneOrOpen = sp.url
+      ? `<button type="button" class="doclink-open-btn" onclick="window.open('${sp.url}','_blank','noopener')">&#8599; Open</button>
+         <label class="doclink-replace" for="sysplan-file-${sp.id}">Replace</label>`
+      : `<div class="doclink-dropzone" id="sysplan-zone-${sp.id}"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="sysPlanDrop(event,'${sp.id}')"
+           onclick="document.getElementById('sysplan-file-${sp.id}').click()">Drop file or click to upload</div>`;
+    row.innerHTML = `
+      <input type="text" class="sysplan-label-input" value="${(sp.label||'').replace(/"/g,'&quot;')}" placeholder="e.g. Fire Alarm Plans" onchange="updateSystemPlanLabel('${sp.id}', this.value)">
+      ${zoneOrOpen}
+      <input type="file" id="sysplan-file-${sp.id}" class="doclink-file-input" onchange="sysPlanFileSelected('${sp.id}',this)">
+      <button type="button" class="sysplan-del" onclick="deleteSystemPlan('${sp.id}')" title="Remove">&#10005;</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addSystemPlan() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.systemPlans = p.systemPlans || [];
+  p.systemPlans.push({ id: uid(), label: '', url: '' });
+  renderSystemPlans(p);
+}
+
+function deleteSystemPlan(id) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.systemPlans = (p.systemPlans||[]).filter(x => x.id !== id);
+  renderSystemPlans(p);
+}
+
+function updateSystemPlanLabel(id, val) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const sp = (p.systemPlans||[]).find(x => x.id === id);
+  if (sp) sp.label = val.trim();
+}
+
+function sysPlanDrop(e, id) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) uploadSystemPlanFile(id, file);
+}
+
+function sysPlanFileSelected(id, input) {
+  const file = input.files && input.files[0];
+  if (file) uploadSystemPlanFile(id, file);
+  input.value = '';
+}
+
+async function uploadSystemPlanFile(id, file) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const zone = document.getElementById('sysplan-zone-'+id);
+  if (zone) zone.textContent = 'Uploading… 0%';
+  try {
+    const path = `project-docs/${p.id}/systemplan_${id}_${Date.now()}_${file.name}`;
+    const ref  = storage.ref().child(path);
+    const task = ref.put(file);
+    await new Promise((resolve, reject) => {
+      task.on('state_changed',
+        snap => { if (zone) zone.textContent = `Uploading… ${Math.round(snap.bytesTransferred / snap.totalBytes * 100)}%`; },
+        reject,
+        resolve
+      );
+    });
+    const url = await ref.getDownloadURL();
+    const sp = (p.systemPlans||[]).find(x => x.id === id);
+    if (sp) sp.url = url;
+    persistData(p);
+    renderSystemPlans(p);
+  } catch(err) {
+    console.warn('ICS CRM: system plan upload failed', err);
+    alert('Upload failed: ' + (err.message || err.code || err));
+    renderSystemPlans(p);
   }
 }
 
