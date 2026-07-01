@@ -1150,6 +1150,15 @@
       <button class="project-search-clear" id="project-search-clear" onclick="clearProjectSearch()">&#x2715;</button>
       <span class="search-result-count" id="search-result-count" style="display:none"></span>
     </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;margin-top:-8px;">
+      <label style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;">Sort</label>
+      <select id="project-sort" onchange="renderGrid()" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;font-size:11px;font-family:inherit;border-radius:2px;outline:none;">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+        <option value="az">A &#8594; Z</option>
+        <option value="za">Z &#8594; A</option>
+      </select>
+    </div>
     <div class="project-grid" id="playground-grid"></div>
   </div>
   <div id="tab-sandbox" style="display:none">
@@ -1163,12 +1172,23 @@
         <div class="section-label">Contractor Directory</div>
         <div class="section-title">Rolodex</div>
       </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;">Sort</label>
+          <select id="rolodex-sort" onchange="renderRolodex()" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;font-size:11px;font-family:inherit;border-radius:2px;outline:none;">
+            <option value="az">A &#8594; Z</option>
+            <option value="za">Z &#8594; A</option>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
       <button id="add-contractor-btn" onclick="openContractorModal(null)"
         style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
         onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
         onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
         + Add Contractor
       </button>
+      </div>
     </div>
     <div class="contractor-grid" id="rolodex-grid"></div>
   </div>
@@ -1808,6 +1828,16 @@ function switchTab(tab) {
 // ════════════════════════════════════════════════════════
 // GRID
 // ════════════════════════════════════════════════════════
+function parseCreatedDate(str) {
+  if (!str) return 0;
+  const datePart = String(str).split(',')[0].trim();
+  const parts = datePart.split('/');
+  if (parts.length !== 3) return 0;
+  const [m, d, y] = parts.map(Number);
+  if (!m || !d || !y) return 0;
+  return new Date(y, m - 1, d).getTime();
+}
+
 function renderGrid() {
   const pg = document.getElementById('playground-grid');
   const sb = document.getElementById('sandbox-grid');
@@ -1831,6 +1861,15 @@ function renderGrid() {
     : allActive;
 
   const archived = projects.filter(p => p.archived);
+
+  const sortMode = document.getElementById('project-sort') ? document.getElementById('project-sort').value : 'newest';
+  const sortFn = {
+    newest: (a,b) => parseCreatedDate(b.created) - parseCreatedDate(a.created),
+    oldest: (a,b) => parseCreatedDate(a.created) - parseCreatedDate(b.created),
+    az:     (a,b) => (a.name||'').localeCompare(b.name||''),
+    za:     (a,b) => (b.name||'').localeCompare(a.name||''),
+  }[sortMode] || null;
+  if (sortFn) { active.sort(sortFn); archived.sort(sortFn); }
 
   // Update result count
   const countEl = document.getElementById('search-result-count');
@@ -2539,7 +2578,16 @@ function renderRolodex() {
     grid.innerHTML = '<div class="empty-state">NO CONTRACTORS — CLICK + ADD CONTRACTOR</div>';
     return;
   }
-  contractors.forEach(c => grid.appendChild(buildContractorCard(c)));
+  const sortMode = document.getElementById('rolodex-sort') ? document.getElementById('rolodex-sort').value : 'az';
+  const sorted = [...contractors];
+  const sortFn = {
+    az:     (a,b) => (a.name||'').localeCompare(b.name||''),
+    za:     (a,b) => (b.name||'').localeCompare(a.name||''),
+    newest: (a,b) => parseCreatedDate(b.created) - parseCreatedDate(a.created),
+    oldest: (a,b) => parseCreatedDate(a.created) - parseCreatedDate(b.created),
+  }[sortMode];
+  if (sortFn) sorted.sort(sortFn);
+  sorted.forEach(c => grid.appendChild(buildContractorCard(c)));
 }
 
 function buildContractorCard(c) {
@@ -2620,7 +2668,8 @@ function saveContractor() {
       address: document.getElementById('cm-address').value.trim(),
       phone:   document.getElementById('cm-phone').value.trim(),
       email:   document.getElementById('cm-email').value.trim(),
-      logo:    cmLogoData || null
+      logo:    cmLogoData || null,
+      created: now()
     };
     contractors.push(saved);
   }
