@@ -1088,7 +1088,7 @@
     <span class="user-email" id="user-email-label"></span>
     <button id="logout-btn" onclick="handleLogout()">Sign Out</button>
   </div>
-  <button id="import-batch-btn" onclick="importPdfBatch()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch (3)</button>
+  <button id="import-batch-btn" onclick="importPdfBatch()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch</button>
   <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
 </div>
 
@@ -2842,6 +2842,90 @@ const IMPORT_BATCH_PROJECTS = [
     notes: [
       { id: 'chaffey-n1', ts: '06/26/2026 [Imported]', text: 'Requested CAD Files' },
     ]
+  },
+  {
+    id: 'import-savanna-hs-gym-hvac-20260630',
+    name: 'Savanna HS Gym HVAC',
+    contractor: 'Airemasters',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '301 N. Gilbert Street, Anaheim, CA 92801',
+    district: '',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    specSection: 'Sheet E3.1',
+    systems: 'Fire Alarm - Non-Voice Evac',
+    scope: 'Sheet E3.1\nFire Alarm - Non-Voice Evac',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'savanna-t1', text: 'Request For CAD Files — Fire Alarm — Submitted — Aaron — HIGH', done: false },
+      { id: 'savanna-t2', text: 'Submittal Booklet — Fire Alarm — Submitted — Aaron — MEDIUM (Sent 5/11/26)', done: false },
+    ],
+    submittals: [
+      { id: 'savanna-s1', type: 'Submittal Booklet', system: 'Fire Alarm', submittalDate: '2026-05-11', status: 'Submitted', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'savanna-n1', ts: '05/11/2026 [Imported]', text: 'Sent Request for CAD files to Amoure Morales' },
+      { id: 'savanna-n2', ts: '05/11/2026 [Imported]', text: 'Sent Fire Alarm Submittal Booklet for Approval' },
+      { id: 'savanna-n3', ts: '05/22/2026 [Imported]', text: 'Sent explanation of why we need CAD files to Savanna Amaure' },
+    ]
+  },
+  {
+    id: 'import-heideman-es-park-fa-20260630',
+    name: 'TUSD Robert Heideman ES Park - FA RR Building',
+    contractor: 'Giannelli Electric',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '15571 Williams St., Tustin, CA 92780',
+    district: 'TUSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    specSection: 'EFA-100',
+    systems: 'Fire Alarm',
+    scope: 'EFA-100\nFire Alarm',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'heideman-t1', text: 'Request for CADS — Fire Alarm — In Progress — Aaron — MEDIUM (Due 6/16/2026)', done: false },
+      { id: 'heideman-t2', text: 'Product Data — Fire Alarm — Submitted — MEDIUM', done: false },
+      { id: 'heideman-t3', text: 'Shop Drawings — Fire Alarm — Not Started — MEDIUM', done: false },
+    ],
+    submittals: [
+      { id: 'heideman-s1', type: 'Product Data', system: 'Fire Alarm', submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+      { id: 'heideman-s2', type: 'Shop Drawings', system: 'Fire Alarm', submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'heideman-n1', ts: '06/16/2026 [Imported]', text: 'Created project folder, Drawings folder and Submittals folder shortcuts to awarded project folder' },
+      { id: 'heideman-n2', ts: '06/16/2026 [Imported]', text: 'Submitted RFI-000 Request for CAD files to Giannelli Electric' },
+    ]
+  },
+  {
+    id: 'import-citrus-hills-hs-hvac-20260630',
+    name: 'VVUSD-Citrus Hills HS-HVAC Replacement',
+    contractor: 'Retrofit Technology',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '18150 Wood Road, Perris, CA 92570',
+    district: 'VVUSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    specSection: '',
+    systems: 'Fire Alarm System (VVUSD Fire Alarm Contractor)',
+    scope: 'Fire Alarm System (VVUSD Fire Alarm Contractor)',
+    archived: false,
+    created: '06/30/2026',
+    tasks: [
+      { id: 'citrus-t1', text: 'Request for CAD Files — Fire Alarm — Submitted — Aaron — HIGH (Due 5/29/2026; 6/2/26 David Wollman called — no CAD files exist for this project)', done: false },
+      { id: 'citrus-t2', text: 'Submittal Booklet — Fire Alarm — Submitted — Jenn — MEDIUM', done: false },
+    ],
+    submittals: [
+      { id: 'citrus-s1', type: 'Submittal Booklet', system: 'Fire Alarm', submittalDate: '2026-05-20', status: 'Submitted', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'citrus-n1', ts: '05/29/2026 [Imported]', text: 'Sent request for CAD files' },
+      { id: 'citrus-n2', ts: '06/02/2026 [Imported]', text: 'David from Retrofit Technology emailed and called to let me know there are no CAD files for this project' },
+    ]
   }
 ];
 
@@ -2849,6 +2933,8 @@ const IMPORT_BATCH_CONTRACTORS = [
   { id: 'import-con-giannelli', name: 'Giannelli Electric', address: '', phone: '', email: '', logo: null },
   { id: 'import-con-rancho-pacific', name: 'Rancho Pacific Electric', address: '', phone: '', email: '', logo: null },
   { id: 'import-con-spec-construction', name: 'Spec Construction', address: '', phone: '', email: '', logo: null },
+  { id: 'import-con-airemasters', name: 'Airemasters', address: '', phone: '', email: '', logo: null },
+  { id: 'import-con-retrofit-technology', name: 'Retrofit Technology', address: '', phone: '', email: '', logo: null },
 ];
 
 async function importPdfBatch() {
