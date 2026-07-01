@@ -209,6 +209,10 @@
     border-bottom: 1px solid var(--border);
     padding-bottom: 6px; margin-bottom: 10px; margin-top: 16px;
   }
+  .collapsible-title { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; }
+  .collapsible-title .chevron { font-size: 9px; color: var(--text-muted); transition: transform 0.15s; }
+  .collapsible-title.sec-closed .chevron { transform: rotate(-90deg); }
+  .sec-collapsed { display: none; }
 
   /* Main body */
   .jc-main { padding: 16px; }
@@ -1177,7 +1181,8 @@
     </div>
     <div class="jc-body">
       <div class="jc-sidebar">
-        <div class="sidebar-section-title">Contractor Info</div>
+        <div class="sidebar-section-title collapsible-title sec-closed" id="hdr-sec-contractor" onclick="toggleSection('sec-contractor')">Contractor Info<span class="chevron">&#9662;</span></div>
+        <div class="sec-collapsed" id="sec-contractor">
         <div class="field-group">
           <label>Contractor Name</label>
           <div class="combobox-wrap" id="jc-contractor-wrap">
@@ -1196,14 +1201,18 @@
         <div class="field-group"><label>Address</label><input type="text" id="f-contractor-addr" placeholder="City, State, ZIP"></div>
         <div class="field-group"><label>Phone</label><input type="text" id="f-phone" placeholder="(000) 000-0000"></div>
         <div class="field-group"><label>Email</label><input type="text" id="f-email" placeholder="email@domain.com"></div>
-        <div class="sidebar-section-title">GC Site Contacts</div>
+        </div>
+        <div class="sidebar-section-title collapsible-title sec-closed" id="hdr-sec-gc" onclick="toggleSection('sec-gc')">GC Site Contacts<span class="chevron">&#9662;</span></div>
+        <div class="sec-collapsed" id="sec-gc">
         <div class="field-group"><label>Project Manager Name</label><input type="text" id="f-gc-pm-name" placeholder="GC PM name"></div>
         <div class="field-group"><label>Project Manager Email</label><input type="text" id="f-gc-pm-email" placeholder="email@domain.com"></div>
         <div class="field-group"><label>Project Manager Phone</label><input type="text" id="f-gc-pm-phone" placeholder="(000) 000-0000"></div>
         <div class="field-group"><label>Foreman Name</label><input type="text" id="f-gc-foreman-name" placeholder="Foreman name"></div>
         <div class="field-group"><label>Foreman Email</label><input type="text" id="f-gc-foreman-email" placeholder="email@domain.com"></div>
         <div class="field-group"><label>Foreman Phone</label><input type="text" id="f-gc-foreman-phone" placeholder="(000) 000-0000"></div>
-        <div class="sidebar-section-title">Project Info</div>
+        </div>
+        <div class="sidebar-section-title collapsible-title sec-closed" id="hdr-sec-projinfo" onclick="toggleSection('sec-projinfo')">Project Info<span class="chevron">&#9662;</span></div>
+        <div class="sec-collapsed" id="sec-projinfo">
         <div class="field-group"><label>Project Name</label><input type="text" id="f-project-name" placeholder="Project name"></div>
         <div class="field-group"><label>Site Address</label><input type="text" id="f-site-addr" placeholder="City, State, ZIP"></div>
         <div class="field-group">
@@ -1253,20 +1262,24 @@
             <div class="combobox-dropdown" id="jc-systems-suggest-dropdown"></div>
           </div>
         </div>
+        </div>
       </div>
 
       <div class="jc-main">
         <div class="section-block">
-          <div class="section-block-title">What's Next — Priority Queue</div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-whatsnext" onclick="toggleSection('sec-whatsnext')">What's Next — Priority Queue<span class="chevron">&#9662;</span></div>
+          <div id="sec-whatsnext">
           <ul class="task-list" id="task-list"></ul>
           <div class="add-task-row">
             <input type="text" id="new-task-input" placeholder="Add task...">
             <button onclick="addTask()">+ ADD</button>
           </div>
+          </div>
         </div>
 
         <div class="section-block">
-          <div class="section-block-title">Submittals</div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-submittals" onclick="toggleSection('sec-submittals')">Submittals<span class="chevron">&#9662;</span></div>
+          <div id="sec-submittals">
           <table class="submittal-table">
             <thead>
               <tr>
@@ -1282,15 +1295,19 @@
             <tbody id="submittal-tbody"></tbody>
           </table>
           <button class="add-sub-btn" onclick="addSubmittalRow()">+ Add Row</button>
+          </div>
         </div>
 
         <div class="section-block">
-          <div class="section-block-title">Document Links</div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-doclinks" onclick="toggleSection('sec-doclinks')">Document Links<span class="chevron">&#9662;</span></div>
+          <div id="sec-doclinks">
           <div class="doclinks-grid" id="doclinks-grid"></div>
+          </div>
         </div>
 
         <div class="section-block">
-          <div class="section-block-title">General Notes — Running Log</div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-notes" onclick="toggleSection('sec-notes')">General Notes — Running Log<span class="chevron">&#9662;</span></div>
+          <div id="sec-notes">
           <div class="notes-log" id="notes-log"></div>
           <div class="add-note-row">
             <div class="add-note-date-row">
@@ -1300,6 +1317,7 @@
             </div>
             <textarea id="new-note-input" placeholder="Enter note..."></textarea>
             <button onclick="addNote()">LOG ENTRY</button>
+          </div>
           </div>
         </div>
       </div>
@@ -1603,6 +1621,8 @@ const STATUS_STAGES = [
   'Pending','Design Complete','Internal Review',
   'Submitted','Revise & Resubmit','Corrections','Approved'
 ];
+
+const SUBMITTAL_TYPE_OPTIONS = ['Product Data', 'Shop Drawings'];
 
 function getStatusClass(status) {
   if (!status) return '';
@@ -1910,6 +1930,30 @@ function createProject() {
 // ════════════════════════════════════════════════════════
 // JOB CARD
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// COLLAPSIBLE JOB CARD SECTIONS
+// ════════════════════════════════════════════════════════
+const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-notes'];
+
+function setSectionState(id, collapsed) {
+  const content = document.getElementById(id);
+  const header  = document.getElementById('hdr-' + id);
+  if (content) content.classList.toggle('sec-collapsed', collapsed);
+  if (header)  header.classList.toggle('sec-closed', collapsed);
+}
+
+function toggleSection(id) {
+  const content = document.getElementById(id);
+  if (!content) return;
+  setSectionState(id, !content.classList.contains('sec-collapsed'));
+}
+
+function resetJobCardSections() {
+  JC_SECTIONS_DEFAULT_CLOSED.forEach(id => setSectionState(id, true));
+  JC_SECTIONS_DEFAULT_OPEN.forEach(id  => setSectionState(id, false));
+}
+
 function openProject(id) {
   const p = projects.find(x => x.id === id); if (!p) return;
   activeProjectId = id;
@@ -1935,6 +1979,7 @@ function openProject(id) {
   renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p);
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
+  resetJobCardSections();
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -2072,6 +2117,15 @@ function sysComboBlur(sid) {
 
 function onSystemSelectChange(sid) { sysComboFilter(sid); }
 
+function buildTypeSelect(s) {
+  const opts = SUBMITTAL_TYPE_OPTIONS;
+  const isKnown = opts.includes(s.type);
+  const blankOpt = `<option value="" ${!s.type ? 'selected' : ''}></option>`;
+  const knownOpts = opts.map(opt => `<option ${s.type===opt?'selected':''}>${opt}</option>`).join('');
+  const legacyOpt = (s.type && !isKnown) ? `<option selected>${s.type}</option>` : '';
+  return `<select onchange="updateSubmittal('${s.id}','type',this.value)">${blankOpt}${knownOpts}${legacyOpt}</select>`;
+}
+
 function renderSubmittals(p) {
   const tbody = document.getElementById('submittal-tbody');
   tbody.innerHTML = '';
@@ -2080,7 +2134,7 @@ function renderSubmittals(p) {
     const effectiveStatus = od && s.status !== 'Approved' ? 'Overdue' : s.status;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label="Data Type"><input type="text" value="${s.type||''}" onchange="updateSubmittal('${s.id}','type',this.value)"></td>
+      <td data-label="Data Type">${buildTypeSelect(s)}</td>
       <td data-label="System Type">${buildSystemSelect(s.id, s.system||'')}</td>
       <td data-label="Submittal Date"><input type="date" value="${s.submittalDate||''}" onchange="updateSubmittal('${s.id}','submittalDate',this.value)"></td>
       <td data-label="Status">
