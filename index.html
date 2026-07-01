@@ -631,6 +631,14 @@
   .combobox-option-name { font-size: 12px; font-weight: 600; color: var(--text); }
   .combobox-option-sub { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .combobox-empty { padding: 10px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+  .doclinks-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .doclink-row { display: flex; align-items: center; gap: 8px; }
+  .doclink-row label { width: 90px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .doclink-row input { flex: 1; background: var(--surface3); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none; border-radius: 2px; transition: border-color 0.15s; }
+  .doclink-row input:focus { border-color: var(--ics-red); }
+  .doclink-open-btn { background: transparent; border: 1px solid var(--border); color: var(--ics-red); border-radius: 2px; padding: 6px 10px; cursor: pointer; font-size: 12px; flex-shrink: 0; transition: border-color 0.15s; }
+  .doclink-open-btn:hover { border-color: var(--ics-red); }
+  .doclink-open-btn:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
 
   /* ─── OVERDUE NOTIFICATION BANNER ─── */
   #overdue-banner { display: none; background: #1a0505; border-bottom: 2px solid var(--ics-red); padding: 0; position: sticky; top: 58px; z-index: 90; overflow: hidden; }
@@ -1090,6 +1098,7 @@
   </div>
   <button id="import-batch-btn" onclick="importPdfBatch()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch</button>
   <button id="import-batch2-btn" onclick="importPdfBatch2()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch 2</button>
+  <button id="import-batch3-btn" onclick="importPdfBatch3()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch 3</button>
   <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
 </div>
 
@@ -1181,10 +1190,38 @@
         <div class="field-group"><label>Address</label><input type="text" id="f-contractor-addr" placeholder="City, State, ZIP"></div>
         <div class="field-group"><label>Phone</label><input type="text" id="f-phone" placeholder="(000) 000-0000"></div>
         <div class="field-group"><label>Email</label><input type="text" id="f-email" placeholder="email@domain.com"></div>
+        <div class="sidebar-section-title">GC Site Contacts</div>
+        <div class="field-group"><label>Project Manager Name</label><input type="text" id="f-gc-pm-name" placeholder="GC PM name"></div>
+        <div class="field-group"><label>Project Manager Email</label><input type="text" id="f-gc-pm-email" placeholder="email@domain.com"></div>
+        <div class="field-group"><label>Project Manager Phone</label><input type="text" id="f-gc-pm-phone" placeholder="(000) 000-0000"></div>
+        <div class="field-group"><label>Foreman Name</label><input type="text" id="f-gc-foreman-name" placeholder="Foreman name"></div>
+        <div class="field-group"><label>Foreman Email</label><input type="text" id="f-gc-foreman-email" placeholder="email@domain.com"></div>
+        <div class="field-group"><label>Foreman Phone</label><input type="text" id="f-gc-foreman-phone" placeholder="(000) 000-0000"></div>
         <div class="sidebar-section-title">Project Info</div>
         <div class="field-group"><label>Project Name</label><input type="text" id="f-project-name" placeholder="Project name"></div>
         <div class="field-group"><label>Site Address</label><input type="text" id="f-site-addr" placeholder="City, State, ZIP"></div>
-        <div class="field-group"><label>District</label><input type="text" id="f-district" placeholder="District / School Dist"></div>
+        <div class="field-group">
+          <label>District</label>
+          <div class="combobox-wrap" id="f-district-wrap">
+            <div class="combobox-input-row">
+              <input type="text" class="combobox-input" id="f-district"
+                placeholder="Select or type district..."
+                autocomplete="off"
+                oninput="districtComboFilter('jc')"
+                onfocus="districtComboOpen('jc')"
+                onblur="districtComboBlur('jc')">
+              <button class="combobox-clear" onclick="document.getElementById('f-district').value='';document.getElementById('f-district').focus();" tabindex="-1">&#x2715;</button>
+            </div>
+            <div class="combobox-dropdown" id="jc-district-dropdown"></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Project Management Site</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="f-pm-site-link" placeholder="https://... (e.g. Procore)" style="flex:1;">
+            <button type="button" onclick="openLinkField('f-pm-site-link')" title="Open link" style="background:transparent;border:1px solid var(--border);color:var(--ics-red);border-radius:2px;padding:0 10px;cursor:pointer;font-size:12px;">&#8599;</button>
+          </div>
+        </div>
         <div class="field-group"><label>Project Manager</label><input type="text" id="f-pm" placeholder="PM name"></div>
         <div class="field-group"><label>Field Lead</label><input type="text" id="f-field-lead" placeholder="Field lead"></div>
         <div class="field-group"><label>Designer</label><input type="text" id="f-designer" placeholder="Designer name"></div>
@@ -1242,6 +1279,11 @@
         </div>
 
         <div class="section-block">
+          <div class="section-block-title">Document Links</div>
+          <div class="doclinks-grid" id="doclinks-grid"></div>
+        </div>
+
+        <div class="section-block">
           <div class="section-block-title">General Notes — Running Log</div>
           <div class="notes-log" id="notes-log"></div>
           <div class="add-note-row">
@@ -1275,7 +1317,21 @@
     </div>
     <div class="npf-body">
       <div class="field-group"><label>Project Name</label><input type="text" id="np-name" placeholder="e.g. Riverside Fire Station"></div>
-      <div class="field-group"><label>District</label><input type="text" id="np-district" placeholder="e.g. Dist 4"></div>
+      <div class="field-group">
+        <label>District</label>
+        <div class="combobox-wrap" id="np-district-wrap">
+          <div class="combobox-input-row">
+            <input type="text" class="combobox-input" id="np-district"
+              placeholder="Select or type district..."
+              autocomplete="off"
+              oninput="districtComboFilter('np')"
+              onfocus="districtComboOpen('np')"
+              onblur="districtComboBlur('np')">
+            <button class="combobox-clear" onclick="document.getElementById('np-district').value='';document.getElementById('np-district').focus();" tabindex="-1">&#x2715;</button>
+          </div>
+          <div class="combobox-dropdown" id="np-district-dropdown"></div>
+        </div>
+      </div>
       <div class="field-group">
         <label>Contractor Name</label>
         <div class="combobox-wrap" id="np-contractor-wrap">
@@ -1806,6 +1862,8 @@ function closeNewProject() {
   if (npConEl && npConEl.dataset) { delete npConEl.dataset.addr; delete npConEl.dataset.phone; delete npConEl.dataset.email; }
   const npDd = document.getElementById('np-combobox-dropdown');
   if (npDd) npDd.classList.remove('open');
+  const npDistDd = document.getElementById('np-district-dropdown');
+  if (npDistDd) npDistDd.classList.remove('open');
 }
 
 function createProject() {
@@ -1823,6 +1881,10 @@ function createProject() {
     phone:          npCon.dataset.phone || '',
     email:          npCon.dataset.email || '',
     siteAddr:'', pm:'', fieldLead:'', designer:'',
+    pmSiteLink:'',
+    gcPmName:'', gcPmEmail:'', gcPmPhone:'',
+    gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
+    links: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -1851,12 +1913,19 @@ function openProject(id) {
   document.getElementById('f-project-name').value    = p.name           || '';
   document.getElementById('f-site-addr').value       = p.siteAddr       || '';
   document.getElementById('f-district').value        = p.district       || '';
+  document.getElementById('f-pm-site-link').value     = p.pmSiteLink     || '';
+  document.getElementById('f-gc-pm-name').value       = p.gcPmName       || '';
+  document.getElementById('f-gc-pm-email').value      = p.gcPmEmail      || '';
+  document.getElementById('f-gc-pm-phone').value      = p.gcPmPhone      || '';
+  document.getElementById('f-gc-foreman-name').value  = p.gcForemanName  || '';
+  document.getElementById('f-gc-foreman-email').value = p.gcForemanEmail || '';
+  document.getElementById('f-gc-foreman-phone').value = p.gcForemanPhone || '';
   document.getElementById('f-pm').value              = p.pm             || '';
   document.getElementById('f-field-lead').value      = p.fieldLead      || '';
   document.getElementById('f-designer').value        = p.designer       || '';
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
-  renderTasks(p); renderSubmittals(p); renderNotes(p);
+  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p);
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
   document.getElementById('modal-overlay').classList.add('open');
@@ -2150,6 +2219,13 @@ function saveProject() {
   p.email          = document.getElementById('f-email').value.trim();
   p.siteAddr       = document.getElementById('f-site-addr').value.trim();
   p.district       = document.getElementById('f-district').value.trim();
+  p.pmSiteLink     = document.getElementById('f-pm-site-link').value.trim();
+  p.gcPmName       = document.getElementById('f-gc-pm-name').value.trim();
+  p.gcPmEmail      = document.getElementById('f-gc-pm-email').value.trim();
+  p.gcPmPhone      = document.getElementById('f-gc-pm-phone').value.trim();
+  p.gcForemanName  = document.getElementById('f-gc-foreman-name').value.trim();
+  p.gcForemanEmail = document.getElementById('f-gc-foreman-email').value.trim();
+  p.gcForemanPhone = document.getElementById('f-gc-foreman-phone').value.trim();
   p.pm             = document.getElementById('f-pm').value.trim();
   p.fieldLead      = document.getElementById('f-field-lead').value.trim();
   p.designer       = document.getElementById('f-designer').value.trim();
@@ -2185,6 +2261,13 @@ function generateReport() {
   p.email          = document.getElementById('f-email').value.trim();
   p.siteAddr       = document.getElementById('f-site-addr').value.trim();
   p.district       = document.getElementById('f-district').value.trim();
+  p.pmSiteLink     = document.getElementById('f-pm-site-link').value.trim();
+  p.gcPmName       = document.getElementById('f-gc-pm-name').value.trim();
+  p.gcPmEmail      = document.getElementById('f-gc-pm-email').value.trim();
+  p.gcPmPhone      = document.getElementById('f-gc-pm-phone').value.trim();
+  p.gcForemanName  = document.getElementById('f-gc-foreman-name').value.trim();
+  p.gcForemanEmail = document.getElementById('f-gc-foreman-email').value.trim();
+  p.gcForemanPhone = document.getElementById('f-gc-foreman-phone').value.trim();
   p.pm             = document.getElementById('f-pm').value.trim();
   p.fieldLead      = document.getElementById('f-field-lead').value.trim();
   p.designer       = document.getElementById('f-designer').value.trim();
@@ -2568,6 +2651,103 @@ function comboboxClear(prefix) {
   const dd = document.getElementById(prefix + '-combobox-dropdown');
   if (dd) dd.classList.remove('open');
   input.focus();
+}
+
+// ════════════════════════════════════════════════════════
+// DISTRICT — searchable combobox (job card + new-project modal)
+// ════════════════════════════════════════════════════════
+const DISTRICT_PRESETS = ['AESD','AUHSD','Chaffey College','FJUHSD','NMUSD','RCOE','TUSD','VVUSD'];
+const districtComboBlurTimer = {};
+
+function getAllDistricts() {
+  const set = new Set(DISTRICT_PRESETS);
+  projects.forEach(p => { if (p.district && p.district.trim()) set.add(p.district.trim()); });
+  return Array.from(set).sort((a,b) => a.localeCompare(b));
+}
+
+function districtComboOpen(prefix) { clearTimeout(districtComboBlurTimer[prefix]); districtComboFilter(prefix); }
+
+function districtComboFilter(prefix) {
+  const input    = document.getElementById(prefix === 'np' ? 'np-district' : 'f-district');
+  const dropdown = document.getElementById(prefix + '-district-dropdown');
+  if (!input || !dropdown) return;
+  const q = input.value.toLowerCase().trim();
+  const matches = getAllDistricts().filter(d => !q || d.toLowerCase().includes(q));
+  dropdown.innerHTML = '';
+  if (matches.length === 0) {
+    dropdown.innerHTML = '<div class="combobox-empty">No matching district — type to enter a new one.</div>';
+  } else {
+    matches.forEach(d => {
+      const opt = document.createElement('div');
+      opt.className = 'combobox-option';
+      opt.textContent = d;
+      opt.addEventListener('mousedown', e => { e.preventDefault(); districtComboSelect(prefix, d); });
+      dropdown.appendChild(opt);
+    });
+  }
+  dropdown.classList.add('open');
+}
+
+function districtComboSelect(prefix, d) {
+  document.getElementById(prefix === 'np' ? 'np-district' : 'f-district').value = d;
+  document.getElementById(prefix + '-district-dropdown').classList.remove('open');
+}
+
+function districtComboBlur(prefix) {
+  districtComboBlurTimer[prefix] = setTimeout(() => {
+    const dd = document.getElementById(prefix + '-district-dropdown');
+    if (dd) dd.classList.remove('open');
+  }, 180);
+}
+
+// ════════════════════════════════════════════════════════
+// LINK FIELDS — generic "open in new tab" helper
+// ════════════════════════════════════════════════════════
+function openLinkField(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  let url = (el.value || '').trim();
+  if (!url) { alert('No link entered yet.'); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  window.open(url, '_blank', 'noopener');
+}
+
+// ════════════════════════════════════════════════════════
+// DOCUMENT LINKS — Plans / Specs / Addendums / Job Notice /
+// Schedule / Estimate / Proposal / Take-offs
+// ════════════════════════════════════════════════════════
+const DOC_LINK_FIELDS = [
+  { key: 'plans',      label: 'Plans' },
+  { key: 'specs',      label: 'Specs' },
+  { key: 'addendums',  label: 'Addendums' },
+  { key: 'jobNotice',  label: 'Job Notice' },
+  { key: 'schedule',   label: 'Schedule' },
+  { key: 'estimate',   label: 'Estimate' },
+  { key: 'proposal',   label: 'Proposal' },
+  { key: 'takeoffs',   label: 'Take-offs' },
+];
+
+function renderDocLinks(p) {
+  const grid = document.getElementById('doclinks-grid');
+  if (!grid) return;
+  p.links = p.links || {};
+  grid.innerHTML = '';
+  DOC_LINK_FIELDS.forEach(f => {
+    const val = p.links[f.key] || '';
+    const row = document.createElement('div');
+    row.className = 'doclink-row';
+    row.innerHTML = `
+      <label>${f.label}</label>
+      <input type="text" id="doclink-${f.key}" value="${val.replace(/"/g,'&quot;')}" placeholder="https://..." onchange="updateDocLink('${f.key}', this.value)">
+      <button type="button" class="doclink-open-btn" onclick="openLinkField('doclink-${f.key}')" title="Open ${f.label}">&#8599;</button>`;
+    grid.appendChild(row);
+  });
+}
+
+function updateDocLink(key, val) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.links = p.links || {};
+  p.links[key] = val.trim();
 }
 
 
@@ -3199,6 +3379,100 @@ async function importPdfBatch2() {
     await batch.commit();
   } catch(e) {
     console.warn('ICS CRM: importPdfBatch2 Firestore write failed, saving locally only.', e);
+  }
+
+  projects.push(...newProjects);
+  contractors.push(...newContractors);
+  persistLocal();
+  renderGrid();
+  renderRolodex();
+  renderOverdueBanner();
+
+  alert(`Import complete.\nAdded ${newProjects.length} project(s) and ${newContractors.length} contractor(s).`);
+}
+
+// ════════════════════════════════════════════════════════
+// IMPORT BATCH 3 — extracted from ICS Master Project Tracker
+// PDF (AUHSD - Western HS 4 RMS) on 07/01/2026.
+// This is ADDITIVE ONLY — importPdfBatch3() checks for existing
+// ids/names before writing anything, so it will never duplicate
+// or overwrite data already in Firestore/localStorage, no matter
+// how many times the button is clicked.
+// ════════════════════════════════════════════════════════
+const IMPORT_BATCH3_PROJECTS = [
+  {
+    id: 'import-auhsd-western-hs-4rms-20260701',
+    name: 'AUHSD - Western HS 4 RMS',
+    contractor: 'ICS Service',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '501 S Western Ave, Anaheim, CA 92804',
+    district: 'AUHSD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    pmSiteLink: '',
+    gcPmName: '', gcPmEmail: '', gcPmPhone: '',
+    gcForemanName: '', gcForemanEmail: '', gcForemanPhone: '',
+    links: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
+    specSection: 'Fire Alarm Per Plan',
+    systems: '',
+    scope: 'Fire Alarm Per Plan',
+    archived: false,
+    created: '07/01/2026',
+    tasks: [
+      { id: 'auhsd4-t1', text: 'Request CAD — Fire Alarm — Completed — Aaron — HIGH', done: true },
+      { id: 'auhsd4-t2', text: 'Product Data — Fire Alarm — Completed — Aaron — HIGH', done: true },
+      { id: 'auhsd4-t3', text: 'Shop Drawings — Fire Alarm — Completed — Aaron — HIGH', done: true },
+    ],
+    submittals: [
+      { id: 'auhsd4-s1', type: 'Product Data',   system: 'Fire Alarm', submittalDate: '2026-06-18', status: 'Approved',       approvedDate: '2026-06-23', notes: 'Submitted Fire Alarm product data to Leah AUHSD' },
+      { id: 'auhsd4-s2', type: 'Shop Drawings',  system: 'Fire Alarm', submittalDate: '2026-06-18', status: 'Internal Review', approvedDate: '',          notes: '' },
+    ],
+    notes: [
+      { id: 'auhsd4-n1', ts: '06/18/2026 [Imported]', text: 'Completed submittal booklet for Fire Alarm system.' },
+      { id: 'auhsd4-n2', ts: '06/18/2026 [Imported]', text: 'Submitted Fire Alarm product data to Leah AUHSD.' },
+      { id: 'auhsd4-n3', ts: '06/22/2026 [Imported]', text: 'In internal review with Hugo and Laurence.' },
+    ]
+  }
+];
+
+const IMPORT_BATCH3_CONTRACTORS = [
+  { id: 'import-con-ics-service', name: 'ICS Service', address: '', phone: '', email: '', logo: null },
+];
+
+async function importPdfBatch3() {
+  const existingProjectIds  = new Set(projects.map(p => p.id));
+  const existingProjectNames = new Set(projects.map(p => (p.name||'').trim().toLowerCase()));
+  const existingConNames    = new Set(contractors.map(c => (c.name||'').trim().toLowerCase()));
+
+  const newProjects    = IMPORT_BATCH3_PROJECTS.filter(p =>
+    !existingProjectIds.has(p.id) && !existingProjectNames.has(p.name.trim().toLowerCase()));
+  const skippedProjects = IMPORT_BATCH3_PROJECTS.filter(p => !newProjects.includes(p));
+
+  const newContractors = IMPORT_BATCH3_CONTRACTORS.filter(c => !existingConNames.has(c.name.trim().toLowerCase()));
+  const skippedCons     = IMPORT_BATCH3_CONTRACTORS.filter(c => !newContractors.includes(c));
+
+  if (newProjects.length === 0 && newContractors.length === 0) {
+    alert('Nothing to import — this project and contractor already exist in your CRM.\n\nNo data was changed.');
+    return;
+  }
+
+  let msg = `Import PDF Batch 3 (07/01/2026)\n\nWill ADD:\n`;
+  msg += newProjects.length ? `• ${newProjects.length} project(s): ${newProjects.map(p=>p.name).join(', ')}\n` : '• 0 new projects\n';
+  msg += newContractors.length ? `• ${newContractors.length} contractor(s): ${newContractors.map(c=>c.name).join(', ')}\n` : '• 0 new contractors\n';
+  if (skippedProjects.length) msg += `\nSkipping (already exist): ${skippedProjects.map(p=>p.name).join(', ')}\n`;
+  if (skippedCons.length) msg += `Skipping contractor (already exists): ${skippedCons.map(c=>c.name).join(', ')}\n`;
+  msg += `\nThis only ADDS data — nothing existing will be modified or removed. Proceed?`;
+
+  if (!confirm(msg)) return;
+
+  try {
+    const batch = db.batch();
+    newProjects.forEach(p => batch.set(db.collection(FS_PROJECTS).doc(p.id), p));
+    newContractors.forEach(c => batch.set(db.collection(FS_CONTRACTORS).doc(c.id), c));
+    await batch.commit();
+  } catch(e) {
+    console.warn('ICS CRM: importPdfBatch3 Firestore write failed, saving locally only.', e);
   }
 
   projects.push(...newProjects);
