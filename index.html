@@ -1089,6 +1089,7 @@
     <button id="logout-btn" onclick="handleLogout()">Sign Out</button>
   </div>
   <button id="import-batch-btn" onclick="importPdfBatch()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch</button>
+  <button id="import-batch2-btn" onclick="importPdfBatch2()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch 2</button>
   <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
 </div>
 
@@ -2981,6 +2982,235 @@ async function importPdfBatch() {
 
   alert(`Import complete.\nAdded ${newProjects.length} project(s) and ${newContractors.length} contractor(s).`);
 }
+
+// ════════════════════════════════════════════════════════
+// IMPORT BATCH 2 — extracted from ICS Master Project Tracker
+// PDFs (Yucca Valley Aquatics, Fire Station No. 4, AESD -
+// Henry E.S.) on 07/01/2026.
+// This is ADDITIVE ONLY — importPdfBatch2() checks for existing
+// ids/names before writing anything, so it will never duplicate
+// or overwrite data already in Firestore/localStorage, no matter
+// how many times the button is clicked.
+// ════════════════════════════════════════════════════════
+const IMPORT_BATCH2_PROJECTS = [
+  {
+    id: 'import-yucca-valley-aquatics-20260701',
+    name: 'Yucca Valley Aquatics',
+    contractor: 'Circle City',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '56500 Little League Drive, Yucca Valley, CA 92284',
+    district: '',
+    pm: 'Hugo',
+    fieldLead: 'Eric',
+    designer: 'Aaron',
+    specSection: '28 31 00 - Fire Detection and Alarm\n28 10 00 - Access Control System\n27 00 00 - Telecommunications System\n27 51 30 - Hearing Assistance System\n28 00 00 - Intrusion Detection System\n28 10 00 - CCTV (tracked under Access Control)\n27 00 00 - Structured Cabling (tracked under Telecommunications)',
+    systems: '',
+    scope: '28 31 00 - Fire Detection and Alarm\n28 10 00 - Access Control System\n27 00 00 - Telecommunications System\n27 51 30 - Hearing Assistance System\n28 00 00 - Intrusion Detection System\n28 10 00 - CCTV (tracked under Access Control)\n27 00 00 - Structured Cabling (tracked under Telecommunications)',
+    archived: false,
+    created: '07/01/2026',
+    tasks: [
+      { id: 'yucca-t1', text: 'Shop Drawings — Assisted Listening — Not Started — Aaron — MEDIUM', done: false },
+      { id: 'yucca-t2', text: 'Shop Drawings — Intrusion Detection — Complete — Aaron — MEDIUM', done: true },
+      { id: 'yucca-t3', text: 'Shop Drawings — Structured Cabling — Complete — Aaron — MEDIUM', done: true },
+      { id: 'yucca-t4', text: 'Find out about the Vivatek Camera System — CCTV — Complete — Aaron — MEDIUM', done: true },
+      { id: 'yucca-t5', text: 'Shop Drawings — Fire Alarm — Complete — Aaron — LOW', done: true },
+    ],
+    submittals: [
+      { id: 'yucca-s1',  type: 'Submittal Booklet', system: 'Hearing Assistance',   submittalDate: '',           status: 'Approved',  approvedDate: '',           notes: '' },
+      { id: 'yucca-s2',  type: 'Submittal Booklet', system: 'Fire Alarm',           submittalDate: '2025-05-19', status: 'Approved',  approvedDate: '',           notes: '' },
+      { id: 'yucca-s3',  type: 'Shop Drawings',     system: 'Fire Alarm',           submittalDate: '2025-04-09', status: 'Approved',  approvedDate: '',           notes: '' },
+      { id: 'yucca-s4',  type: 'Submittal Booklet', system: 'Intrusion Detection',  submittalDate: '2025-02-14', status: 'Approved',  approvedDate: '',           notes: '' },
+      { id: 'yucca-s5',  type: 'Shop Drawings',     system: 'Intrusion Detection',  submittalDate: '',           status: 'Submitted', approvedDate: '',           notes: '' },
+      { id: 'yucca-s6',  type: 'Submittal Booklet', system: 'Telecommunications',   submittalDate: '',           status: 'Approved',  approvedDate: '',           notes: 'MCN: If running Cat6 cabling to be Cat6a plenum rated' },
+      { id: 'yucca-s7',  type: 'Shop Drawings',     system: 'Telecommunications',   submittalDate: '',           status: 'Pending',   approvedDate: '',           notes: '' },
+      { id: 'yucca-s8',  type: 'Submittal Booklet', system: 'Access Control',       submittalDate: '2025-09-23', status: 'Approved',  approvedDate: '',           notes: '' },
+      { id: 'yucca-s9',  type: 'Shop Drawings',     system: 'Access Control',       submittalDate: '2026-03-03', status: 'Approved',  approvedDate: '',           notes: '' },
+      { id: 'yucca-s10', type: 'Submittal Booklet', system: 'CCTV',                 submittalDate: '2024-09-19', status: 'Approved',  approvedDate: '2024-10-24', notes: '' },
+      { id: 'yucca-s11', type: 'Shop Drawings',     system: 'CCTV',                 submittalDate: '2026-06-10', status: 'Submitted', approvedDate: '',           notes: 'Date corrected per PM — source sheet showed 09/10/2026 typo; actual submit date confirmed 06/10/2026' },
+    ],
+    notes: [
+      { id: 'yucca-n1',  ts: '11/05/2025 [Imported]', text: 'Need to request CAD for Low Voltage system. — FA dwgs approved shop drawings.' },
+      { id: 'yucca-n2',  ts: '11/05/2025 [Imported]', text: 'All notes inputted are from the notes on the white board. Need to verify all information.' },
+      { id: 'yucca-n3',  ts: '12/04/2025 [Imported]', text: 'Site visit completed. Approved drawings so we won\'t change plans. Jenn sent emails to confirm PA/autonomous sound specs. Change order may be sent soon.' },
+      { id: 'yucca-n4',  ts: '01/27/2026 [Imported]', text: 'Located intrusion detection spec on Addendum 04. Reviewing drawings. Sent resubmittal of Cameras system, requested approval of Access Control system.' },
+      { id: 'yucca-n5',  ts: '01/28/2026 [Imported]', text: 'Received email of submitted Access Controls from Anthony Rev 1 via Jenn.' },
+      { id: 'yucca-n6',  ts: '02/20/2026 [Imported]', text: 'Researched access controls shop drawings — none created. No approved submittals found for the Vercada system.' },
+      { id: 'yucca-n7',  ts: '02/26/2026 [Imported]', text: 'Completed shop drawings for access controls, sent to PM for review before submittal.' },
+      { id: 'yucca-n8',  ts: '03/30/2026 [Imported]', text: 'Completed Intrusion and Access Controls Shop Drawings.' },
+      { id: 'yucca-n9',  ts: '04/03/2026 [Imported]', text: 'Completed Structured Cabling system shop drawings.' },
+      { id: 'yucca-n10', ts: '04/06/2026 [Imported]', text: 'Sent Access Controls shop drawings to Mark Bruan and team for approval.' },
+      { id: 'yucca-n11', ts: '05/29/2026 [Imported]', text: 'Procore site access noted (Eric\'s credentials, link on file).' },
+      { id: 'yucca-n12', ts: '05/29/2026 [Imported]', text: 'No CCTV submittal booklet or drawings appear to have been submitted.' },
+      { id: 'yucca-n13', ts: '06/04/2026 [Imported]', text: 'Sent email to confirm CCTV product data submittals were approved.' },
+      { id: 'yucca-n14', ts: '06/04/2026 [Imported]', text: 'Printed Rough Fire inspection job card (3 copies), sent approved plans to ibrepographics for print.' },
+      { id: 'yucca-n15', ts: '06/10/2026 [Imported]', text: 'Submitted CCTV Shop Drawings for approval.' },
+    ]
+  },
+  {
+    id: 'import-fire-station-4-20260701',
+    name: 'Fire Station No. 4',
+    contractor: 'Tri-power Electric',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '4375 Pala Mesa Drive, Fallbrook, CA 92028',
+    district: '',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    specSection: '27 05 23 - Television Signal Distribution\n27 13 43 - Data Network & Cable\n27 51 30 - Fire Alerting System (Time & Alarm)\nPer Plans - Access & Intrusion System\n28 31 00 - Fire Alarm System',
+    systems: '',
+    scope: '27 05 23 - Television Signal Distribution\n27 13 43 - Data Network & Cable\n27 51 30 - Fire Alerting System (Time & Alarm)\nPer Plans - Access & Intrusion System\n28 31 00 - Fire Alarm System',
+    archived: false,
+    created: '07/01/2026',
+    tasks: [
+      { id: 'fs4-t1', text: 'Request for CADs — Fire Alarm — Waiting — Aaron — HIGH', done: false },
+      { id: 'fs4-t2', text: 'Start Submittal Docs — Not Started — Aaron — MEDIUM (Booklets for Systems)', done: false },
+      { id: 'fs4-t3', text: 'RFI — Fire Alarm — Complete — Fire Station Alerting System w/ Laurence', done: true },
+      { id: 'fs4-t4', text: 'RFI — CAD Files — In Progress — Due 03/24/2026 — Aaron (PAST DUE — sent email request of CAD files to Mike at Tri-power)', done: false },
+    ],
+    submittals: [
+      { id: 'fs4-s1', type: 'Submittal Booklet', system: 'Fire Alarm',          submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+      { id: 'fs4-s2', type: 'Submittal Booklet', system: 'Data Network',       submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+      { id: 'fs4-s3', type: 'Submittal Booklet', system: 'Intrusion Detection',submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+      { id: 'fs4-s4', type: 'Submittal Booklet', system: 'Access Control',     submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+      { id: 'fs4-s5', type: 'Submittal Booklet', system: 'Television Signal',  submittalDate: '', status: 'Pending', approvedDate: '', notes: '' },
+    ],
+    notes: [
+      { id: 'fs4-n1', ts: '03/24/2026 [Imported]', text: 'Noticed the Fire Protection Alerting System is not limited to Div 00 & 01 — contractor holding C10 & C7 is responsible.' },
+      { id: 'fs4-n2', ts: '03/27/2026 [Imported]', text: 'Just updating you. Received this earlier this week, still waiting on a response — will follow up again today.' },
+    ]
+  },
+  {
+    id: 'import-aesd-henry-es-20260701',
+    name: 'AESD - Henry E.S.',
+    contractor: 'Pinner Construction',
+    contractorAddr: '', phone: '', email: '',
+    siteAddr: '1123 W Romneya Drive, Anaheim, CA 92801',
+    district: 'AESD',
+    pm: 'Hugo',
+    fieldLead: '',
+    designer: 'Aaron',
+    specSection: '28 00 00 - Fire alarm\n27 40 19 - Assisted Listening\n28 10 00 - Electronic Access Controls\n27 41 20 - Integrated Audio Video\n27 51 23 - Integrated Communications\n27 10 00 - Structured Cabling',
+    systems: '',
+    scope: '28 00 00 - Fire alarm\n27 40 19 - Assisted Listening\n28 10 00 - Electronic Access Controls\n27 41 20 - Integrated Audio Video\n27 51 23 - Integrated Communications\n27 10 00 - Structured Cabling',
+    archived: false,
+    created: '07/01/2026',
+    tasks: [
+      { id: 'aesd-t1',  text: 'Submit Shop Drawings — Assisted Listening — Not Started — Due 03/23/2026 — Aaron — MEDIUM (PAST DUE)', done: false },
+      { id: 'aesd-t2',  text: 'Submit Booklet — Fire Alarm — Complete — 03/11/2026 — Aaron — MEDIUM', done: true },
+      { id: 'aesd-t3',  text: 'Submit Shop Drawings — Fire Alarm — Complete — 03/20/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t4',  text: 'Submit Booklet — Access Control — Complete — 03/20/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t5',  text: 'Submit Shop Drawings — Access Control — Complete — 03/20/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t6',  text: 'Submit Booklet — Intrusion Detection — Complete — 03/20/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t7',  text: 'Submit Shop Drawings — Intrusion Detection — Complete — 03/20/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t8',  text: 'Submit Booklet — Integrated Communications — Complete — 02/27/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t9',  text: 'Submit Shop Drawings — Integrated Communications — Complete — 03/23/2026 — Aaron — MEDIUM', done: true },
+      { id: 'aesd-t10', text: 'Submit Booklet — Assisted Listening — Complete — 03/23/2026 — Aaron — MEDIUM', done: true },
+      { id: 'aesd-t11', text: 'Submit Booklet — Structured Cabling — Complete — 06/17/2026 — Jenn — HIGH', done: true },
+      { id: 'aesd-t12', text: 'CCD 014 Clock Revision — Structured Cabling — Complete — 03/26/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t13', text: 'Submit Shop Drawings — Structured Cabling — Complete — 04/22/2026 — Aaron — MEDIUM', done: true },
+      { id: 'aesd-t14', text: 'CCD 014 Clock Revision — CCD 014 Dwgs — Complete — 03/24/2026 — Aaron — HIGH', done: true },
+      { id: 'aesd-t15', text: 'Send Intrusion Keypad — Intrusion Detection — Completed — 03/24/2026 — Aaron — LOW', done: true },
+      { id: 'aesd-t16', text: 'Submit Booklet — Audio Visual — Complete — 05/15/2026 — Megan — HIGH', done: true },
+      { id: 'aesd-t17', text: 'Submit Shop Drawings — Audio Visual — Complete — Aaron — HIGH', done: true },
+    ],
+    submittals: [
+      { id: 'aesd-s1',  type: 'Submittal Booklet', system: 'Fire Alarm',                 submittalDate: '2026-03-11', status: 'Approved',   approvedDate: '',           notes: 'Make Corrections as Noted' },
+      { id: 'aesd-s2',  type: 'Shop Drawings',     system: 'Fire Alarm',                 submittalDate: '2026-04-09', status: 'Approved',   approvedDate: '2026-05-15', notes: 'NET' },
+      { id: 'aesd-s3',  type: 'Submittal Booklet', system: 'Assisted Listening',         submittalDate: '2025-12-08', status: 'Approved',   approvedDate: '2026-01-15', notes: '' },
+      { id: 'aesd-s4',  type: 'Shop Drawings',     system: 'Assisted Listening',         submittalDate: '2026-03-11', status: 'Approved',   approvedDate: '',           notes: 'Added to Integrated Audio Video system' },
+      { id: 'aesd-s5',  type: 'Submittal Booklet', system: 'Access Control',             submittalDate: '2026-03-18', status: 'Approved',   approvedDate: '',           notes: 'Pinner Reviewing' },
+      { id: 'aesd-s6',  type: 'Shop Drawings',     system: 'Access Control',             submittalDate: '2026-03-18', status: 'Approved',   approvedDate: '',           notes: 'Meeting 9:00am w/ Pinner on keypad locations. 5/13/26 rejected by WSP (elevation details, 734 module detail); resubmitted 5/22/26.' },
+      { id: 'aesd-s7',  type: 'Submittal Booklet', system: 'Intrusion Detection',        submittalDate: '2026-03-18', status: 'Approved',   approvedDate: '',           notes: 'Pinner Reviewing' },
+      { id: 'aesd-s8',  type: 'Shop Drawings',     system: 'Intrusion Detection',        submittalDate: '2026-03-18', status: 'Approved',   approvedDate: '2026-06-05', notes: 'Combined with Electronic Access Controls rejection/resubmit. Approved no exceptions 6/5/26.' },
+      { id: 'aesd-s9',  type: 'Submittal Booklet', system: 'Structured Cabling',         submittalDate: '2026-03-11', status: 'Corrections',approvedDate: '',           notes: 'Resubmitted 5/20/26; rejected again 6/17/26 — CCD not yet approved, needs grounding splice + 2-hole compression lugs.' },
+      { id: 'aesd-s10', type: 'Shop Drawings',     system: 'Structured Cabling',         submittalDate: '2026-03-16', status: 'Approved',   approvedDate: '2026-04-13', notes: 'No exceptions taken 4/13/26' },
+      { id: 'aesd-s11', type: 'Submittal Booklet', system: 'Audio Visual',               submittalDate: '2026-02-10', status: 'Submitted',  approvedDate: '2026-02-27', notes: 'Resubmitted 5/15/26 and 5/18/26' },
+      { id: 'aesd-s12', type: 'Shop Drawings',     system: 'Audio Visual',               submittalDate: '2026-05-28', status: 'Submitted',  approvedDate: '',           notes: 'Still with Architect as of 07/01/2026 — 18 days overdue per PM notes' },
+      { id: 'aesd-s13', type: 'Submittal Booklet', system: 'Integrated Communications',  submittalDate: '2026-02-10', status: 'Approved',   approvedDate: '2026-04-07', notes: '' },
+      { id: 'aesd-s14', type: 'Shop Drawings',     system: 'Integrated Communications',  submittalDate: '2026-04-10', status: 'Approved',   approvedDate: '2026-04-22', notes: 'MCN' },
+    ],
+    notes: [
+      { id: 'aesd-n1',  ts: '02/27/2026 [Imported]', text: 'Refer to pg. 2 of submittal for design team comments; submit product data for requested clock once CCD issued. Begin shop drawings per spec 27 51 23.' },
+      { id: 'aesd-n2',  ts: '02/27/2026 [Imported]', text: 'Make corrections as noted once CCD approved — resubmit only on battery-operated clocks.' },
+      { id: 'aesd-n3',  ts: '03/24/2026 [Imported]', text: 'Coordination meeting with Pinner re: Intrusion Keypad locations. Emailed Elizabeth, cc\'d team.' },
+      { id: 'aesd-n4',  ts: '03/24/2026 [Imported]', text: 'Sent CCD-014 Clock Revisions back to Pinner for approval.' },
+      { id: 'aesd-n5',  ts: '04/01/2026 [Imported]', text: 'Sent CCD-014 Clock Revisions back to Pinner WITH CO-03 Change Order.' },
+      { id: 'aesd-n6',  ts: '04/07/2026 [Imported]', text: 'Working on Fire Alarm plans, calculations.' },
+      { id: 'aesd-n7',  ts: '04/09/2026 [Imported]', text: 'Worked on Structured Cabling rejected booklet, Integrated Communications system.' },
+      { id: 'aesd-n8',  ts: '04/13/2026 [Imported]', text: 'Received NET for Structured Cabling shop drawings.' },
+      { id: 'aesd-n9',  ts: '04/14/2026 [Imported]', text: 'Worked on Integrated Communications shop drawings.' },
+      { id: 'aesd-n10', ts: '04/15/2026 [Imported]', text: 'Worked on Integrated Communications shop drawings.' },
+      { id: 'aesd-n11', ts: '04/16/2026 [Imported]', text: 'Worked on Integrated Communications rack elevation details.' },
+      { id: 'aesd-n12', ts: '04/16/2026 [Imported]', text: 'Returned rejected Electronic Access Controls shop drawings from WSP/Pinner — wants devices/door numbering on riser diagram, TV mounts removed (not in scope).' },
+      { id: 'aesd-n13', ts: '04/16/2026 [Imported]', text: 'Returned "make corrections as noted": Integrated Communications wireless battery clock product data.' },
+      { id: 'aesd-n14', ts: '04/16/2026 [Imported]', text: 'Returned "make corrections as noted": Fire Alarm product data.' },
+      { id: 'aesd-n15', ts: '04/16/2026 [Imported]', text: 'Returned "make corrections as noted": Electronic Access Controls product data.' },
+      { id: 'aesd-n16', ts: '04/21/2026 [Imported]', text: 'Worked on Electronic Access Controls — devices and riser.' },
+      { id: 'aesd-n17', ts: '04/23/2026 [Imported]', text: 'Worked on Electronic Access Controls — devices and riser.' },
+      { id: 'aesd-n18', ts: '04/27/2026 [Imported]', text: 'Addressed Integrated Communications plans.' },
+      { id: 'aesd-n19', ts: '04/28/2026 [Imported]', text: 'Resubmitted Electronic Access Controls Shop Drawings for approval.' },
+      { id: 'aesd-n20', ts: '05/15/2026 [Imported]', text: 'Received NET for Fire Alarm shop drawings.' },
+      { id: 'aesd-n21', ts: '05/15/2026 [Imported]', text: 'Jenn sent Integrated Audio Video submittal product data.' },
+      { id: 'aesd-n22', ts: '05/26/2026 [Imported]', text: 'Pinner pre-installation meeting online, 11:00am.' },
+      { id: 'aesd-n23', ts: '05/28/2026 [Imported]', text: 'Submitted Integrated Audio Visual shop drawings to Pinner for approval.' },
+      { id: 'aesd-n24', ts: '06/05/2026 [Imported]', text: 'Plans came back approved, no exceptions taken.' },
+      { id: 'aesd-n25', ts: '06/17/2026 [Imported]', text: 'Structured Cabling rejected — CCD not yet approved, grounding splice + 2-hole compression lugs needed.' },
+      { id: 'aesd-n26', ts: '07/01/2026 [Imported]', text: 'Integrated Audio Visual shop drawings still with Architect — 18 days overdue.' },
+    ]
+  }
+];
+
+const IMPORT_BATCH2_CONTRACTORS = [
+  { id: 'import-con-circle-city',    name: 'Circle City',        address: '', phone: '', email: '', logo: null },
+  { id: 'import-con-tri-power',      name: 'Tri-power Electric', address: '', phone: '', email: '', logo: null },
+  { id: 'import-con-pinner',         name: 'Pinner Construction',address: '', phone: '', email: '', logo: null },
+];
+
+async function importPdfBatch2() {
+  const existingProjectIds  = new Set(projects.map(p => p.id));
+  const existingProjectNames = new Set(projects.map(p => (p.name||'').trim().toLowerCase()));
+  const existingConNames    = new Set(contractors.map(c => (c.name||'').trim().toLowerCase()));
+
+  const newProjects    = IMPORT_BATCH2_PROJECTS.filter(p =>
+    !existingProjectIds.has(p.id) && !existingProjectNames.has(p.name.trim().toLowerCase()));
+  const skippedProjects = IMPORT_BATCH2_PROJECTS.filter(p => !newProjects.includes(p));
+
+  const newContractors = IMPORT_BATCH2_CONTRACTORS.filter(c => !existingConNames.has(c.name.trim().toLowerCase()));
+  const skippedCons     = IMPORT_BATCH2_CONTRACTORS.filter(c => !newContractors.includes(c));
+
+  if (newProjects.length === 0 && newContractors.length === 0) {
+    alert('Nothing to import — all 3 projects and contractors from this batch already exist in your CRM.\n\nNo data was changed.');
+    return;
+  }
+
+  let msg = `Import PDF Batch 2 (07/01/2026)\n\nWill ADD:\n`;
+  msg += newProjects.length ? `• ${newProjects.length} project(s): ${newProjects.map(p=>p.name).join(', ')}\n` : '• 0 new projects\n';
+  msg += newContractors.length ? `• ${newContractors.length} contractor(s): ${newContractors.map(c=>c.name).join(', ')}\n` : '• 0 new contractors\n';
+  if (skippedProjects.length) msg += `\nSkipping (already exist): ${skippedProjects.map(p=>p.name).join(', ')}\n`;
+  if (skippedCons.length) msg += `Skipping contractor (already exists): ${skippedCons.map(c=>c.name).join(', ')}\n`;
+  msg += `\nThis only ADDS data — nothing existing will be modified or removed. Proceed?`;
+
+  if (!confirm(msg)) return;
+
+  try {
+    const batch = db.batch();
+    newProjects.forEach(p => batch.set(db.collection(FS_PROJECTS).doc(p.id), p));
+    newContractors.forEach(c => batch.set(db.collection(FS_CONTRACTORS).doc(c.id), c));
+    await batch.commit();
+  } catch(e) {
+    console.warn('ICS CRM: importPdfBatch2 Firestore write failed, saving locally only.', e);
+  }
+
+  projects.push(...newProjects);
+  contractors.push(...newContractors);
+  persistLocal();
+  renderGrid();
+  renderRolodex();
+  renderOverdueBanner();
+
+  alert(`Import complete.\nAdded ${newProjects.length} project(s) and ${newContractors.length} contractor(s).`);
+}
+
 
 // ════════════════════════════════════════════════════════
 // SPEC SECTION / SYSTEMS — split-field autocomplete
