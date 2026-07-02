@@ -572,6 +572,11 @@
   .submittal-table th:nth-child(2),
   .submittal-table td:nth-child(2) { min-width: 200px; width: 200px; }
 
+  /* ─── DATA TYPE COLUMN WIDTH ─── */
+  .submittal-table th:nth-child(1),
+  .submittal-table td:nth-child(1) { min-width: 150px; width: 150px; }
+  .submittal-table td:nth-child(1) select { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+
   /* ─── ROLODEX TAB ─── */
   .contractor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 32px; }
   .contractor-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; position: relative; transition: all 0.15s; }
