@@ -250,7 +250,7 @@
   .add-task-row button:hover { background: var(--ics-red-dark); }
 
   /* Submittals Table */
-  .submittal-table { width: 100%; border-collapse: collapse; }
+  .submittal-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .submittal-table th {
     background: #1a1a1a; padding: 7px 10px; text-align: left;
     font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
@@ -568,24 +568,28 @@
   .note-view-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 10px; font-weight: 700; cursor: pointer; padding: 2px 8px; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; transition: all 0.15s; }
   .note-view-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
 
-  /* ─── SUBMITTAL TABLE — SCROLLABLE, WIDTH-BALANCED COLUMNS ─── */
+  /* ─── SUBMITTAL TABLE — FIXED LAYOUT, PERCENTAGE WIDTHS ───
+     table-layout:fixed means these percentages are honored exactly
+     by every browser, regardless of cell content — Notes reliably
+     gets the largest share instead of being squeezed by auto-layout
+     heuristics. */
   .submittal-table-wrap { overflow-x: auto; }
-  .submittal-table { min-width: 950px; }
-  .submittal-table th:nth-child(2),
-  .submittal-table td:nth-child(2) { min-width: 180px; width: 180px; }
   .submittal-table th:nth-child(1),
-  .submittal-table td:nth-child(1) { min-width: 140px; width: 140px; }
+  .submittal-table td:nth-child(1) { width: 13%; }
+  .submittal-table th:nth-child(2),
+  .submittal-table td:nth-child(2) { width: 16%; }
   .submittal-table th:nth-child(3),
-  .submittal-table td:nth-child(3) { min-width: 115px; width: 115px; }
+  .submittal-table td:nth-child(3) { width: 11%; }
   .submittal-table th:nth-child(4),
-  .submittal-table td:nth-child(4) { min-width: 150px; width: 150px; }
+  .submittal-table td:nth-child(4) { width: 13%; }
   .submittal-table th:nth-child(5),
-  .submittal-table td:nth-child(5) { min-width: 115px; width: 115px; }
+  .submittal-table td:nth-child(5) { width: 11%; }
   .submittal-table th:nth-child(6),
-  .submittal-table td:nth-child(6) { min-width: 240px; width: auto; }
+  .submittal-table td:nth-child(6) { width: 34%; }
   .submittal-table th:nth-child(7),
   .submittal-table td:nth-child(7) { width: 32px; }
   .submittal-table td:nth-child(1) select { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+  .submittal-table td input, .submittal-table td select { text-overflow: ellipsis; }
 
   /* ─── ROLODEX TAB ─── */
   .contractor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 32px; }
