@@ -568,13 +568,23 @@
   .note-view-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 10px; font-weight: 700; cursor: pointer; padding: 2px 8px; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; transition: all 0.15s; }
   .note-view-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
 
-  /* ─── SYSTEM TYPE COLUMN WIDTH ─── */
+  /* ─── SUBMITTAL TABLE — SCROLLABLE, WIDTH-BALANCED COLUMNS ─── */
+  .submittal-table-wrap { overflow-x: auto; }
+  .submittal-table { min-width: 950px; }
   .submittal-table th:nth-child(2),
-  .submittal-table td:nth-child(2) { min-width: 200px; width: 200px; }
-
-  /* ─── DATA TYPE COLUMN WIDTH ─── */
+  .submittal-table td:nth-child(2) { min-width: 180px; width: 180px; }
   .submittal-table th:nth-child(1),
-  .submittal-table td:nth-child(1) { min-width: 150px; width: 150px; }
+  .submittal-table td:nth-child(1) { min-width: 140px; width: 140px; }
+  .submittal-table th:nth-child(3),
+  .submittal-table td:nth-child(3) { min-width: 115px; width: 115px; }
+  .submittal-table th:nth-child(4),
+  .submittal-table td:nth-child(4) { min-width: 150px; width: 150px; }
+  .submittal-table th:nth-child(5),
+  .submittal-table td:nth-child(5) { min-width: 115px; width: 115px; }
+  .submittal-table th:nth-child(6),
+  .submittal-table td:nth-child(6) { min-width: 240px; width: auto; }
+  .submittal-table th:nth-child(7),
+  .submittal-table td:nth-child(7) { width: 32px; }
   .submittal-table td:nth-child(1) select { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 
   /* ─── ROLODEX TAB ─── */
@@ -1054,6 +1064,22 @@
     .rpt-note-row    { break-inside: avoid; page-break-inside: avoid; }
     .rpt-task-row    { break-inside: avoid; page-break-inside: avoid; }
 
+    /* Repeat column headers at the top of every page a table spans,
+       so a continued table never reads as unlabeled/orphaned content
+       bleeding from the prior section. */
+    .rpt-table thead { display: table-header-group; }
+    .rpt-table tbody { display: table-row-group; }
+
+    /* Force each major section to start clean — never let a section
+       header land as the last line on a page with its content pushed
+       to the next (avoids the header appearing "detached" from what
+       it labels, and prevents rows from one section visually blending
+       into the next section on the printed page). */
+    .rpt-section-header { break-before: auto; }
+    .rpt-section-header + .rpt-table,
+    .rpt-section-header + .rpt-task-list,
+    .rpt-section-header + .rpt-notes-list { break-before: avoid; page-break-before: avoid; }
+
     /* Status badge colors — all stages */
     .rpt-status-approved    { background: #dcfce7 !important; color: #16a34a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .rpt-status-pending     { background: #fef9c3 !important; color: #a16207 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1309,6 +1335,7 @@
         <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-submittals" onclick="toggleSection('sec-submittals')">Submittals<span class="chevron">&#9662;</span></div>
           <div id="sec-submittals">
+          <div class="submittal-table-wrap">
           <table class="submittal-table">
             <thead>
               <tr>
@@ -1323,6 +1350,7 @@
             </thead>
             <tbody id="submittal-tbody"></tbody>
           </table>
+          </div>
           <button class="add-sub-btn" onclick="addSubmittalRow()">+ Add Row</button>
           </div>
         </div>
@@ -2401,6 +2429,7 @@ function generateReport() {
     const effStatus = od && s.status !== 'Approved' ? 'Overdue' : (s.status || 'Pending');
     return `<tr>
       <td><strong>${s.type||'—'}</strong></td>
+      <td>${s.system||'—'}</td>
       <td>${fmtDate(s.submittalDate)}</td>
       <td><span class="rpt-status ${getRptStatusClass(effStatus)}">${effStatus}</span></td>
       <td>${fmtDate(s.approvedDate)}</td>
@@ -2476,8 +2505,8 @@ function generateReport() {
         <!-- Submittals -->
         <div class="rpt-section-header"><div class="rpt-dot"></div> Submittal Status</div>
         <table class="rpt-table">
-          <thead><tr><th>Data Type</th><th>Submittal Date</th><th>Status</th><th>Date Approved / Returned</th><th>Notes</th></tr></thead>
-          <tbody>${subRows||'<tr><td colspan="5" style="color:#888;font-style:italic;padding:10px">No submittals on record.</td></tr>'}</tbody>
+          <thead><tr><th>Data Type</th><th>System</th><th>Submittal Date</th><th>Status</th><th>Date Approved / Returned</th><th>Notes</th></tr></thead>
+          <tbody>${subRows||'<tr><td colspan="6" style="color:#888;font-style:italic;padding:10px">No submittals on record.</td></tr>'}</tbody>
         </table>
 
         <!-- Active Tasks -->
