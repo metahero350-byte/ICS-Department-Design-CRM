@@ -250,7 +250,7 @@
   .add-task-row button:hover { background: var(--ics-red-dark); }
 
   /* Submittals Table */
-  .submittal-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .submittal-table { border-collapse: collapse; table-layout: fixed; }
   .submittal-table th {
     background: #1a1a1a; padding: 7px 10px; text-align: left;
     font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
@@ -568,28 +568,33 @@
   .note-view-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 10px; font-weight: 700; cursor: pointer; padding: 2px 8px; letter-spacing: 1px; border-radius: 2px; text-transform: uppercase; transition: all 0.15s; }
   .note-view-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
 
-  /* ─── SUBMITTAL TABLE — FIXED LAYOUT, PERCENTAGE WIDTHS ───
-     table-layout:fixed means these percentages are honored exactly
-     by every browser, regardless of cell content — Notes reliably
-     gets the largest share instead of being squeezed by auto-layout
-     heuristics. */
+  /* ─── SUBMITTAL TABLE — FIXED LAYOUT, ABSOLUTE PX WIDTHS ───
+     Percentages of a ~800px panel gave date columns only ~90px —
+     not enough for "12/30/2026" + the native calendar icon, which
+     is the widest string/control combination this table ever needs
+     to render. Every column below gets a guaranteed absolute pixel
+     width regardless of container size; the wrapper scrolls
+     horizontally if the panel is narrower than the table's total
+     width, so no column is ever silently compressed again. */
   .submittal-table-wrap { overflow-x: auto; overflow-y: visible; }
+  .submittal-table { width: 1044px; table-layout: fixed; }
   .submittal-table th:nth-child(1),
-  .submittal-table td:nth-child(1) { width: 13%; }
+  .submittal-table td:nth-child(1) { width: 140px; }
   .submittal-table th:nth-child(2),
-  .submittal-table td:nth-child(2) { width: 16%; }
+  .submittal-table td:nth-child(2) { width: 190px; }
   .submittal-table th:nth-child(3),
-  .submittal-table td:nth-child(3) { width: 11%; }
+  .submittal-table td:nth-child(3) { width: 135px; }
   .submittal-table th:nth-child(4),
-  .submittal-table td:nth-child(4) { width: 13%; }
+  .submittal-table td:nth-child(4) { width: 150px; }
   .submittal-table th:nth-child(5),
-  .submittal-table td:nth-child(5) { width: 11%; }
+  .submittal-table td:nth-child(5) { width: 135px; }
   .submittal-table th:nth-child(6),
-  .submittal-table td:nth-child(6) { width: 34%; }
+  .submittal-table td:nth-child(6) { width: 260px; }
   .submittal-table th:nth-child(7),
-  .submittal-table td:nth-child(7) { width: 32px; }
+  .submittal-table td:nth-child(7) { width: 34px; }
   .submittal-table td:nth-child(1) select { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
   .submittal-table td input, .submittal-table td select { text-overflow: ellipsis; }
+  .submittal-table td input[type="date"] { font-size: 11px; padding: 2px 2px; }
 
   /* ─── ROLODEX TAB ─── */
   .contractor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 32px; }
