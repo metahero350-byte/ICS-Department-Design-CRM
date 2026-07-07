@@ -214,6 +214,17 @@
   .collapsible-title.sec-closed .chevron { transform: rotate(-90deg); }
   .sec-collapsed { display: none; }
 
+  /* ─── AT-A-GLANCE MODAL ─── */
+  .glance-modal { position: fixed; top: 90px; right: 40px; width: 320px; max-width: calc(100vw - 40px); background: var(--surface2); border: 1px solid var(--ics-red); border-radius: 4px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); z-index: 3000; }
+  .glance-header { background: var(--ics-red); color: #fff; padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; border-radius: 3px 3px 0 0; cursor: move; user-select: none; }
+  .glance-header button { background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+  .glance-body { padding: 10px 12px; max-height: 360px; overflow-y: auto; }
+  .glance-item { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text); }
+  .glance-item:last-child { border-bottom: none; }
+  .glance-item.g-overdue { color: var(--ics-red); font-weight: 700; }
+  .glance-item.g-high { color: var(--text); font-weight: 600; }
+  .glance-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 4px 0; }
+
   /* Main body */
   .jc-main { padding: 16px; }
   .section-block { margin-bottom: 20px; }
@@ -802,6 +813,9 @@
 
   /* ─── MOBILE RESPONSIVE (max-width: 768px) ─── */
   @media (max-width: 768px) {
+
+    /* ── At-a-Glance modal: full-width strip instead of a floating box ── */
+    .glance-modal { left: 12px !important; right: 12px !important; top: 12px !important; width: auto; }
 
     /* ── Top Nav: stack into two rows ── */
     #topnav {
@@ -1404,6 +1418,15 @@
       <button class="btn-save" onclick="saveProject()">Save Project</button>
     </div>
   </div>
+</div>
+
+<!-- AT-A-GLANCE MODAL -->
+<div id="glance-modal" class="glance-modal" style="display:none;">
+  <div class="glance-header" id="glance-header">
+    <span>&#9888; AT A GLANCE</span>
+    <button onclick="closeGlanceModal()" title="Close">&#10005;</button>
+  </div>
+  <div class="glance-body" id="glance-body"></div>
 </div>
 
 <!-- NEW PROJECT MODAL -->
@@ -2075,16 +2098,85 @@ function openProject(id) {
   document.getElementById('save-status').textContent = '';
   resetJobCardSections();
   document.getElementById('modal-overlay').classList.add('open');
+  openGlanceModal(p);
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   activeProjectId = null;
+  closeGlanceModal();
 }
 
 // ════════════════════════════════════════════════════════
 // TASKS
 // ════════════════════════════════════════════════════════
+function taskPriority(text) {
+  const t = (text||'').toLowerCase();
+  if (t.includes('product data')) return 0;
+  if (t.includes('shop drawing')) return 1;
+  return 2;
+}
+
+// ════════════════════════════════════════════════════════
+// AT-A-GLANCE MODAL — high-importance items, most to least
+// ════════════════════════════════════════════════════════
+function openGlanceModal(p) {
+  const modal = document.getElementById('glance-modal');
+  const body  = document.getElementById('glance-body');
+  if (!modal || !body) return;
+  const t = today();
+
+  const overdueItems = (p.submittals||[]).filter(s => s.submittalDate && s.status !== 'Approved' && s.submittalDate < t)
+    .map(s => ({ label: `OVERDUE: ${s.type||'Submittal'}${s.system ? ' — ' + s.system : ''}`, rank: 0, cls: 'g-overdue' }));
+
+  const openTasks = (p.tasks||[]).filter(x => !x.done)
+    .map(x => {
+      const isHigh = /high/i.test(x.text);
+      const pr = taskPriority(x.text);
+      return { label: x.text, rank: 1 + pr + (isHigh ? -0.5 : 0), cls: isHigh ? 'g-high' : '' };
+    });
+
+  const items = [...overdueItems, ...openTasks].sort((a,b) => a.rank - b.rank).slice(0, 8);
+
+  body.innerHTML = items.length
+    ? items.map(i => `<div class="glance-item ${i.cls}">${i.label}</div>`).join('')
+    : '<div class="glance-empty">Nothing urgent — all clear.</div>';
+
+  modal.style.display = 'block';
+  modal.style.left = '';
+  modal.style.top = '90px';
+  modal.style.right = '40px';
+  initGlanceDrag();
+}
+
+function closeGlanceModal() {
+  const modal = document.getElementById('glance-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function initGlanceDrag() {
+  const header = document.getElementById('glance-header');
+  const modal  = document.getElementById('glance-modal');
+  if (!header || !modal || header.dataset.wired) return;
+  header.dataset.wired = '1';
+  header.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    const rect = modal.getBoundingClientRect();
+    const offX = e.clientX - rect.left, offY = e.clientY - rect.top;
+    modal.style.right = '';
+    function move(ev) {
+      modal.style.left = (ev.clientX - offX) + 'px';
+      modal.style.top  = (ev.clientY - offY) + 'px';
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
 function renderTasks(p) {
   const list = document.getElementById('task-list');
   list.innerHTML = '';
@@ -2095,7 +2187,8 @@ function renderTasks(p) {
       autoTasks.push({ id:'auto-'+s.id, text:`SUBMITTAL OVERDUE: ${s.type} ${sysLabel}— submitted ${s.submittalDate}, awaiting approval`, done:false, overdue:true });
     }
   });
-  const allTasks = [...autoTasks, ...(p.tasks||[])];
+  const sortedTasks = [...(p.tasks||[])].sort((a,b) => taskPriority(a.text) - taskPriority(b.text));
+  const allTasks = [...autoTasks, ...sortedTasks];
   if (allTasks.length === 0) {
     list.innerHTML = '<li style="color:var(--text-muted);font-size:12px;padding:8px 0;">No tasks queued.</li>';
     return;
@@ -2559,7 +2652,7 @@ function getOverdueItems() {
       const key = p.id + '-' + s.id;
       if (dismissedOverdueKeys.has(key)) return;
       const days = Math.floor((new Date(t) - new Date(s.submittalDate)) / 86400000);
-      items.push({ key, projectName:p.name||'Unnamed Project', systemType:s.system||'—', dataType:s.type||'—', status:s.status||'Pending', days });
+      items.push({ key, projectId:p.id, projectName:p.name||'Unnamed Project', systemType:s.system||'—', dataType:s.type||'—', status:s.status||'Pending', days });
     });
   });
   return items;
@@ -2575,6 +2668,9 @@ function renderOverdueBanner() {
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = 'banner-item';
+    div.style.cursor = 'pointer';
+    div.title = 'Click to open job card';
+    div.onclick = () => openProject(item.projectId);
     div.innerHTML = `
       <div class="banner-item-dot"></div>
       <div class="banner-item-text">
@@ -2584,7 +2680,7 @@ function renderOverdueBanner() {
         &nbsp;·&nbsp;<span class="bi-days">${item.days}d overdue</span>
         &nbsp;·&nbsp;<span style="color:var(--text-muted)">${item.status}</span>
       </div>
-      <button class="banner-item-dismiss" onclick="dismissBannerItem('${item.key}')" title="Dismiss">✕</button>`;
+      <button class="banner-item-dismiss" onclick="event.stopPropagation();dismissBannerItem('${item.key}')" title="Dismiss">✕</button>`;
     container.appendChild(div);
   });
   banner.classList.add('visible');
