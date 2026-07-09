@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ICS Service CRM</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E50914">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ICS CRM">
 
 <!-- ─── FIREBASE SDK (CDN compat build) ─── -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -213,6 +220,7 @@
   .collapsible-title .chevron { font-size: 9px; color: var(--text-muted); transition: transform 0.15s; }
   .collapsible-title.sec-closed .chevron { transform: rotate(-90deg); }
   .sec-collapsed { display: none; }
+  .count-badge { font-size: 12px; font-weight: 400; color: var(--text-muted); }
 
   /* ─── AT-A-GLANCE MODAL ─── */
   .glance-modal { position: fixed; top: 90px; right: 40px; width: 320px; max-width: calc(100vw - 40px); background: var(--surface2); border: 1px solid var(--ics-red); border-radius: 4px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); z-index: 3000; }
@@ -896,7 +904,9 @@
     .section-block { overflow-x: visible; }
     .submittal-table {
       display: block;
-      overflow-x: auto;
+      width: 100%;
+      table-layout: auto;
+      overflow-x: visible;
       white-space: nowrap;
     }
     .submittal-table thead, .submittal-table tbody { display: block; }
@@ -1164,9 +1174,6 @@
     <span class="user-email" id="user-email-label"></span>
     <button id="logout-btn" onclick="handleLogout()">Sign Out</button>
   </div>
-  <button id="import-batch-btn" onclick="importPdfBatch()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch</button>
-  <button id="import-batch2-btn" onclick="importPdfBatch2()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch 2</button>
-  <button id="import-batch3-btn" onclick="importPdfBatch3()" style="background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);border-radius:4px;padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;margin-right:8px;">&#8593; Import PDF Batch 3</button>
   <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
 </div>
 
@@ -1192,7 +1199,7 @@
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:4px;">
       <div>
         <div class="section-label">Active Projects</div>
-        <div class="section-title" style="margin-bottom:0">Playground</div>
+        <div class="section-title" style="margin-bottom:0">Playground <span id="playground-count" class="count-badge"></span></div>
       </div>
     </div>
     <div class="project-search-wrap" style="margin-top:12px;margin-bottom:16px;">
@@ -1207,24 +1214,24 @@
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;margin-top:-8px;">
       <label style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;">Sort</label>
       <select id="project-sort" onchange="renderGrid()" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;font-size:11px;font-family:inherit;border-radius:2px;outline:none;">
+        <option value="az" selected>A &#8594; Z</option>
+        <option value="za">Z &#8594; A</option>
         <option value="newest">Newest First</option>
         <option value="oldest">Oldest First</option>
-        <option value="az">A &#8594; Z</option>
-        <option value="za">Z &#8594; A</option>
       </select>
     </div>
     <div class="project-grid" id="playground-grid"></div>
   </div>
   <div id="tab-sandbox" style="display:none">
     <div class="section-label">Archived Projects</div>
-    <div class="section-title">Sandbox</div>
+    <div class="section-title">Sandbox <span id="sandbox-count" class="count-badge"></span></div>
     <div class="project-grid" id="sandbox-grid"></div>
   </div>
   <div id="tab-rolodex" style="display:none">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
       <div>
         <div class="section-label">Contractor Directory</div>
-        <div class="section-title">Rolodex</div>
+        <div class="section-title">Rolodex <span id="rolodex-count" class="count-badge"></span></div>
       </div>
       <div style="display:flex;align-items:center;gap:16px;">
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1572,6 +1579,14 @@ const auth      = firebase.auth();
 const db        = firebase.firestore();
 const storage   = firebase.storage();
 const analytics = firebase.analytics();
+
+// PWA installability — passthrough-only worker, see sw.js for why it
+// never caches (this app is 100% live Firebase data, always).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('ICS CRM: SW registration failed', e));
+  });
+}
 
 const FS_PROJECTS    = 'ics_projects';
 const FS_CONTRACTORS = 'ics_contractors';
@@ -1926,6 +1941,11 @@ function renderGrid() {
     : allActive;
 
   const archived = projects.filter(p => p.archived);
+
+  const pgCount = document.getElementById('playground-count');
+  const sbCount = document.getElementById('sandbox-count');
+  if (pgCount) pgCount.textContent = '(' + allActive.length + ')';
+  if (sbCount) sbCount.textContent = '(' + archived.length + ')';
 
   const sortMode = document.getElementById('project-sort') ? document.getElementById('project-sort').value : 'newest';
   const sortFn = {
@@ -2713,6 +2733,8 @@ function renderRolodex() {
   const grid = document.getElementById('rolodex-grid');
   if (!grid) return;
   grid.innerHTML = '';
+  const rdCount = document.getElementById('rolodex-count');
+  if (rdCount) rdCount.textContent = '(' + contractors.length + ')';
   if (contractors.length === 0) {
     grid.innerHTML = '<div class="empty-state">NO CONTRACTORS — CLICK + ADD CONTRACTOR</div>';
     return;
