@@ -655,6 +655,8 @@
   .cm-logo-info { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
   .cm-logo-info strong { color: var(--text-dim); display: block; margin-bottom: 2px; }
   .cm-footer { padding: 12px 16px; background: #0d0d0d; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .cm-delete-btn { margin-right: auto; padding: 8px 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; border-radius: 2px; border: 1px solid var(--ics-red-dark); background: transparent; color: var(--ics-red); transition: all 0.15s; }
+  .cm-delete-btn:hover { background: var(--ics-red); color: #fff; }
 
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
@@ -779,6 +781,10 @@
     transition: border-color 0.15s;
   }
   .login-field input:focus { border-color: var(--ics-red); }
+  .pw-field-wrap { position: relative; }
+  .pw-field-wrap input { padding-right: 38px; }
+  .pw-toggle-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 6px 8px; line-height: 1; }
+  .pw-toggle-btn:hover { color: var(--text); }
   .login-error {
     display: none; background: rgba(229,9,20,0.1); border: 1px solid var(--ics-red);
     color: var(--ics-red); font-size: 11px; padding: 8px 12px;
@@ -1144,7 +1150,10 @@
       </div>
       <div class="login-field">
         <label>Password</label>
-        <input type="password" id="login-password" autocomplete="current-password" required>
+        <div class="pw-field-wrap">
+          <input type="password" id="login-password" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle-btn" id="pw-toggle-btn" onclick="togglePasswordVisibility()" tabindex="-1">&#128065;</button>
+        </div>
       </div>
       <button type="submit" class="login-submit" id="login-submit-btn">Sign In</button>
     </form>
@@ -1393,10 +1402,34 @@
         </div>
 
         <div class="section-block">
-          <div class="section-block-title collapsible-title" id="hdr-sec-sysplans" onclick="toggleSection('sec-sysplans')">System-Specific Plans<span class="chevron">&#9662;</span></div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-plans" onclick="toggleSection('sec-plans')">Plans<span class="chevron">&#9662;</span></div>
+          <div id="sec-plans">
+          <div class="doclinks-grid" id="plans-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('plans')">+ Add Plan Set</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-rfis" onclick="toggleSection('sec-rfis')">RFI's<span class="chevron">&#9662;</span></div>
+          <div id="sec-rfis">
+          <div class="doclinks-grid" id="rfis-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('rfis')">+ Add RFI</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-cos" onclick="toggleSection('sec-cos')">Change Orders<span class="chevron">&#9662;</span></div>
+          <div id="sec-cos">
+          <div class="doclinks-grid" id="co-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('changeOrders')">+ Add Change Order</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-sysplans" onclick="toggleSection('sec-sysplans')">Additional Documentation<span class="chevron">&#9662;</span></div>
           <div id="sec-sysplans">
           <div class="doclinks-grid" id="system-plans-list"></div>
-          <button class="add-sub-btn" onclick="addSystemPlan()">+ Add Plan</button>
+          <button class="add-sub-btn" onclick="addSystemPlan()">+ Add Document</button>
           </div>
         </div>
 
@@ -1529,6 +1562,7 @@
       <div class="field-group"><label>Email</label><input type="text" id="cm-email" placeholder="contact@company.com"></div>
     </div>
     <div class="cm-footer">
+      <button class="cm-delete-btn" id="cm-delete-btn" style="display:none;" onclick="deleteContractorFromModal()">&#128465; Delete</button>
       <button class="btn-archive" onclick="closeContractorModal()">Cancel</button>
       <button class="btn-save" onclick="saveContractor()">Save Contractor</button>
     </div>
@@ -1615,6 +1649,14 @@ function setLoginLoading(loading) {
   btn.innerHTML = loading
     ? '<span class="login-spinner"></span>Signing In...'
     : 'Sign In';
+}
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('login-password');
+  const btn   = document.getElementById('pw-toggle-btn');
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.innerHTML = showing ? '&#128065;' : '&#128584;';
 }
 
 async function handleLogin() {
@@ -2049,6 +2091,7 @@ function createProject() {
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     systemPlans: [],
+    plansList: [], rfis: [], changeOrders: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2071,7 +2114,7 @@ function createProject() {
 // COLLAPSIBLE JOB CARD SECTIONS
 // ════════════════════════════════════════════════════════
 const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
-const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-sysplans','sec-notes'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-plans','sec-rfis','sec-cos','sec-sysplans','sec-notes'];
 
 function setSectionState(id, collapsed) {
   const content = document.getElementById(id);
@@ -2114,6 +2157,7 @@ function openProject(id) {
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
   renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p);
+  renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders');
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
   resetJobCardSections();
@@ -2801,6 +2845,7 @@ function openContractorModal(cid) {
   if (c && c.logo) { preview.innerHTML = `<img src="${c.logo}" alt="logo">`; cmLogoData = c.logo; }
   else             { preview.innerHTML = '<span class="cm-logo-hint">Click to upload logo</span>'; }
   document.getElementById('contractor-modal-overlay').classList.add('open');
+  document.getElementById('cm-delete-btn').style.display = isEdit ? 'inline-block' : 'none';
   document.getElementById('cm-name').focus();
 }
 
@@ -2846,6 +2891,13 @@ function deleteContractor(cid) {
   deleteContractorFromFirestore(cid);
   persistLocal();
   renderRolodex();
+}
+
+function deleteContractorFromModal() {
+  if (!editingContractorId) return;
+  const cid = editingContractorId;
+  deleteContractor(cid);
+  if (!contractors.find(x => x.id === cid)) closeContractorModal();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2997,11 +3049,13 @@ function openLinkField(inputId) {
 }
 
 // ════════════════════════════════════════════════════════
-// DOCUMENT LINKS — Plans / Specs / Addendums / Job Notice /
+// DOCUMENT LINKS — Specs / Addendums / Job Notice /
 // Schedule / Estimate / Proposal / Take-offs
+// (Plans moved to its own dynamic multi-entry section below —
+// existing p.docLinks.plans values are preserved and auto-migrated
+// into the new Plans list the first time a job card renders.)
 // ════════════════════════════════════════════════════════
 const DOC_LINK_FIELDS = [
-  { key: 'plans',      label: 'Plans' },
   { key: 'specs',      label: 'Specs' },
   { key: 'addendums',  label: 'Addendums' },
   { key: 'jobNotice',  label: 'Job Notice' },
@@ -3161,6 +3215,120 @@ async function uploadSystemPlanFile(id, file) {
     console.warn('ICS CRM: system plan upload failed', err);
     alert('Upload failed: ' + (err.message || err.code || err));
     renderSystemPlans(p);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// GENERIC DYNAMIC DOC LISTS — Plans / RFI's / Change Orders
+// Same label+upload-or-link pattern as System-Specific Plans
+// (kept as a separate, generic implementation so the existing,
+// already-working sysPlans functions above are never touched).
+// Each list is its own array on the project: p.plansList,
+// p.rfis, p.changeOrders — each item is { id, label, url }.
+// ════════════════════════════════════════════════════════
+const DOC_LIST_CONFIGS = {
+  plans:        { field: 'plansList',    gridId: 'plans-list',    zonePrefix: 'plan' },
+  rfis:         { field: 'rfis',         gridId: 'rfis-list',     zonePrefix: 'rfi'  },
+  changeOrders: { field: 'changeOrders', gridId: 'co-list',       zonePrefix: 'co'   }
+};
+
+function renderDocList(p, listKey) {
+  const cfg = DOC_LIST_CONFIGS[listKey];
+  const wrap = document.getElementById(cfg.gridId);
+  if (!wrap) return;
+  p[cfg.field] = p[cfg.field] || [];
+
+  // One-time, non-destructive migration: if the old fixed "Plans" doc
+  // link has a value and the new list is still empty, carry it over as
+  // the first entry instead of silently losing it. The old field is left
+  // untouched (not cleared) so nothing is destroyed in the process.
+  if (listKey === 'plans' && p[cfg.field].length === 0 && p.docLinks && p.docLinks.plans) {
+    p[cfg.field].push({ id: uid(), label: 'Plans', url: p.docLinks.plans });
+  }
+
+  wrap.innerHTML = '';
+  p[cfg.field].forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'doclink-row';
+    const zoneId = `${cfg.zonePrefix}-zone-${item.id}`;
+    const fileId = `${cfg.zonePrefix}-file-${item.id}`;
+    const zoneOrOpen = item.url
+      ? `<button type="button" class="doclink-open-btn" onclick="window.open('${item.url}','_blank','noopener')">&#8599; Open</button>
+         <label class="doclink-replace" for="${fileId}">Replace</label>`
+      : `<div class="doclink-dropzone" id="${zoneId}"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="docListDrop(event,'${listKey}','${item.id}')"
+           onclick="document.getElementById('${fileId}').click()">Drop file or click to upload</div>`;
+    row.innerHTML = `
+      <input type="text" class="sysplan-label-input" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="Label..." onchange="updateDocListLabel('${listKey}','${item.id}', this.value)">
+      ${zoneOrOpen}
+      <input type="file" id="${fileId}" class="doclink-file-input" onchange="docListFileSelected('${listKey}','${item.id}',this)">
+      <button type="button" class="sysplan-del" onclick="deleteDocListItem('${listKey}','${item.id}')" title="Remove">&#10005;</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addDocListItem(listKey) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const cfg = DOC_LIST_CONFIGS[listKey];
+  p[cfg.field] = p[cfg.field] || [];
+  p[cfg.field].push({ id: uid(), label: '', url: '' });
+  renderDocList(p, listKey);
+}
+
+function deleteDocListItem(listKey, id) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const cfg = DOC_LIST_CONFIGS[listKey];
+  p[cfg.field] = (p[cfg.field]||[]).filter(x => x.id !== id);
+  renderDocList(p, listKey);
+}
+
+function updateDocListLabel(listKey, id, val) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const cfg = DOC_LIST_CONFIGS[listKey];
+  const item = (p[cfg.field]||[]).find(x => x.id === id);
+  if (item) item.label = val.trim();
+}
+
+function docListDrop(e, listKey, id) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) uploadDocListFile(listKey, id, file);
+}
+
+function docListFileSelected(listKey, id, input) {
+  const file = input.files && input.files[0];
+  if (file) uploadDocListFile(listKey, id, file);
+  input.value = '';
+}
+
+async function uploadDocListFile(listKey, id, file) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const cfg = DOC_LIST_CONFIGS[listKey];
+  const zone = document.getElementById(`${cfg.zonePrefix}-zone-${id}`);
+  if (zone) zone.textContent = 'Uploading… 0%';
+  try {
+    const path = `project-docs/${p.id}/${listKey}_${id}_${Date.now()}_${file.name}`;
+    const ref  = storage.ref().child(path);
+    const task = ref.put(file);
+    await new Promise((resolve, reject) => {
+      task.on('state_changed',
+        snap => { if (zone) zone.textContent = `Uploading… ${Math.round(snap.bytesTransferred / snap.totalBytes * 100)}%`; },
+        reject,
+        resolve
+      );
+    });
+    const url = await ref.getDownloadURL();
+    const item = (p[cfg.field]||[]).find(x => x.id === id);
+    if (item) item.url = url;
+    persistData(p);
+    renderDocList(p, listKey);
+  } catch(err) {
+    console.warn('ICS CRM: doc list upload failed', err);
+    alert('Upload failed: ' + (err.message || err.code || err));
+    renderDocList(p, listKey);
   }
 }
 
