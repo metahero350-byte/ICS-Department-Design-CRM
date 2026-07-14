@@ -1402,10 +1402,26 @@
         </div>
 
         <div class="section-block">
-          <div class="section-block-title collapsible-title" id="hdr-sec-plans" onclick="toggleSection('sec-plans')">Plans<span class="chevron">&#9662;</span></div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-plans" onclick="toggleSection('sec-plans')">Approved Shop Drawings/ PLANS<span class="chevron">&#9662;</span></div>
           <div id="sec-plans">
           <div class="doclinks-grid" id="plans-list"></div>
           <button class="add-sub-btn" onclick="addDocListItem('plans')">+ Add Plan Set</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-apd" onclick="toggleSection('sec-apd')">Approved Product Data Submittals<span class="chevron">&#9662;</span></div>
+          <div id="sec-apd">
+          <div class="doclinks-grid" id="apd-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('approvedProductData')">+ Add Submittal</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-closeouts" onclick="toggleSection('sec-closeouts')">Closeouts<span class="chevron">&#9662;</span></div>
+          <div id="sec-closeouts">
+          <div class="doclinks-grid" id="closeouts-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('closeouts')">+ Add Closeout</button>
           </div>
         </div>
 
@@ -2091,7 +2107,7 @@ function createProject() {
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     systemPlans: [],
-    plansList: [], rfis: [], changeOrders: [],
+    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2114,7 +2130,7 @@ function createProject() {
 // COLLAPSIBLE JOB CARD SECTIONS
 // ════════════════════════════════════════════════════════
 const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
-const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-plans','sec-rfis','sec-cos','sec-sysplans','sec-notes'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-plans','sec-apd','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes'];
 
 function setSectionState(id, collapsed) {
   const content = document.getElementById(id);
@@ -2157,7 +2173,7 @@ function openProject(id) {
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
   renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p);
-  renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders');
+  renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders'); renderDocList(p, 'approvedProductData'); renderDocList(p, 'closeouts');
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
   resetJobCardSections();
@@ -3227,9 +3243,11 @@ async function uploadSystemPlanFile(id, file) {
 // p.rfis, p.changeOrders — each item is { id, label, url }.
 // ════════════════════════════════════════════════════════
 const DOC_LIST_CONFIGS = {
-  plans:        { field: 'plansList',    gridId: 'plans-list',    zonePrefix: 'plan' },
-  rfis:         { field: 'rfis',         gridId: 'rfis-list',     zonePrefix: 'rfi'  },
-  changeOrders: { field: 'changeOrders', gridId: 'co-list',       zonePrefix: 'co'   }
+  plans:               { field: 'plansList',           gridId: 'plans-list',     zonePrefix: 'plan' },
+  rfis:                { field: 'rfis',                 gridId: 'rfis-list',      zonePrefix: 'rfi'  },
+  changeOrders:         { field: 'changeOrders',         gridId: 'co-list',        zonePrefix: 'co'   },
+  approvedProductData:  { field: 'approvedProductData',  gridId: 'apd-list',       zonePrefix: 'apd'  },
+  closeouts:            { field: 'closeouts',            gridId: 'closeouts-list', zonePrefix: 'clo'  }
 };
 
 function renderDocList(p, listKey) {
