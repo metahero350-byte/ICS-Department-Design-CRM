@@ -1346,15 +1346,9 @@
           </div>
         </div>
         <div class="field-group">
-          <label>Systems</label>
-          <div class="combobox-wrap" id="jc-systems-wrap">
-            <textarea id="f-systems" class="scope-textarea" rows="3"
-              placeholder="e.g.&#10;Structured Cabling&#10;Fire Alarm&#10;CCTV"
-              oninput="tagSuggestFilter('jc-systems')"
-              onfocus="tagSuggestOpen('jc-systems')"
-              onblur="tagSuggestBlur('jc-systems')"></textarea>
-            <div class="combobox-dropdown" id="jc-systems-suggest-dropdown"></div>
-          </div>
+          <label>System Notes</label>
+          <textarea id="f-systems" class="scope-textarea" rows="3"
+            placeholder="Manufacturer notes, brief system descriptions, etc."></textarea>
         </div>
         </div>
       </div>
@@ -1536,15 +1530,9 @@
         </div>
       </div>
       <div class="field-group">
-        <label>Systems</label>
-        <div class="combobox-wrap" id="np-systems-wrap">
-          <textarea id="np-systems" class="scope-textarea" rows="2"
-            placeholder="e.g. Structured Cabling, Fire Alarm"
-            oninput="tagSuggestFilter('np-systems')"
-            onfocus="tagSuggestOpen('np-systems')"
-            onblur="tagSuggestBlur('np-systems')"></textarea>
-          <div class="combobox-dropdown" id="np-systems-suggest-dropdown"></div>
-        </div>
+        <label>System Notes</label>
+        <textarea id="np-systems" class="scope-textarea" rows="2"
+          placeholder="Manufacturer notes, brief system descriptions, etc."></textarea>
       </div>
     </div>
     <div class="npf-footer">
@@ -2681,7 +2669,7 @@ function generateReport() {
         ${(p.specSection || p.systems) ? `
         <div class="rpt-scope-strip">
           ${p.specSection ? `<div class="rpt-info-label">Spec Section</div><div class="rpt-scope-value">${escapeHtml(p.specSection)}</div>` : ''}
-          ${p.systems ? `<div class="rpt-info-label" style="margin-top:8px">Systems</div><div class="rpt-scope-value">${escapeHtml(p.systems)}</div>` : ''}
+          ${p.systems ? `<div class="rpt-info-label" style="margin-top:8px">System Notes</div><div class="rpt-scope-value">${escapeHtml(p.systems)}</div>` : ''}
         </div>` : (p.scope ? `<div class="rpt-scope-strip"><div class="rpt-info-label">Spec Sections / Systems Scope</div><div class="rpt-scope-value">${escapeHtml(p.scope)}</div></div>` : '')}
 
         <!-- Submittals -->
@@ -4098,9 +4086,7 @@ function escapeHtml(s) {
 
 const TAG_FIELD_MAP = {
   'jc-spec':    { textarea: 'f-spec-section',  dropdown: 'jc-spec-suggest-dropdown',    dataKey: 'specSection' },
-  'jc-systems': { textarea: 'f-systems',        dropdown: 'jc-systems-suggest-dropdown', dataKey: 'systems' },
   'np-spec':    { textarea: 'np-spec-section',  dropdown: 'np-spec-suggest-dropdown',    dataKey: 'specSection' },
-  'np-systems': { textarea: 'np-systems',       dropdown: 'np-systems-suggest-dropdown', dataKey: 'systems' },
 };
 let TAG_SUGGEST_CACHE = {};
 
