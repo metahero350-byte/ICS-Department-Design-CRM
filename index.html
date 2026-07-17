@@ -658,6 +658,13 @@
   .cm-delete-btn { margin-right: auto; padding: 8px 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; border-radius: 2px; border: 1px solid var(--ics-red-dark); background: transparent; color: var(--ics-red); transition: all 0.15s; }
   .cm-delete-btn:hover { background: var(--ics-red); color: #fff; }
 
+  #directory-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 350; align-items: center; justify-content: center; padding: 20px; }
+  #directory-modal-overlay.open { display: flex; }
+  #directory-modal { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--ics-red); width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; border-radius: 4px; }
+  #dm-close { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+  #dm-close:hover { color: var(--ics-red); }
+  #dm-logo-upload { display: none; }
+
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
   .combobox-input-row { display: flex; gap: 0; }
@@ -1171,9 +1178,11 @@
     <h1><span>ICS</span> SERVICE CRM</h1>
   </div>
   <nav class="nav-tabs">
-    <button class="nav-tab active" onclick="switchTab('playground')">Playground</button>
-    <button class="nav-tab" onclick="switchTab('sandbox')">Sandbox</button>
-    <button class="nav-tab" onclick="switchTab('rolodex')">&#128218; Rolodex</button>
+    <button class="nav-tab active" data-tab="playground" onclick="switchTab('playground')">Playground</button>
+    <button class="nav-tab" data-tab="sandbox" onclick="switchTab('sandbox')">Sandbox</button>
+    <button class="nav-tab" data-tab="rolodex" onclick="switchTab('rolodex')">&#128218; Rolodex</button>
+    <button class="nav-tab" data-tab="districts" onclick="switchTab('districts')">&#127970; Districts</button>
+    <button class="nav-tab" data-tab="ahj" onclick="switchTab('ahj')">&#127959; AHJ</button>
   </nav>
   <div id="sync-indicator">
     <div id="sync-dot"></div>
@@ -1261,6 +1270,60 @@
       </div>
     </div>
     <div class="contractor-grid" id="rolodex-grid"></div>
+  </div>
+
+  <div id="tab-districts" style="display:none">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div class="section-label">District Directory</div>
+        <div class="section-title">Districts <span id="districts-count" class="count-badge"></span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;">Sort</label>
+          <select id="districts-sort" onchange="renderDirectory('districts')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;font-size:11px;font-family:inherit;border-radius:2px;outline:none;">
+            <option value="az">A &#8594; Z</option>
+            <option value="za">Z &#8594; A</option>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      <button onclick="openDirectoryModal('districts', null)"
+        style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
+        onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
+        onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
+        + Add District
+      </button>
+      </div>
+    </div>
+    <div class="contractor-grid" id="districts-grid"></div>
+  </div>
+
+  <div id="tab-ahj" style="display:none">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div class="section-label">AHJ Submission Directory</div>
+        <div class="section-title">AHJ Rolodex <span id="ahj-count" class="count-badge"></span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;">Sort</label>
+          <select id="ahj-sort" onchange="renderDirectory('ahj')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;font-size:11px;font-family:inherit;border-radius:2px;outline:none;">
+            <option value="az">A &#8594; Z</option>
+            <option value="za">Z &#8594; A</option>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      <button onclick="openDirectoryModal('ahj', null)"
+        style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
+        onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
+        onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
+        + Add AHJ
+      </button>
+      </div>
+    </div>
+    <div class="contractor-grid" id="ahj-grid"></div>
   </div>
 </div>
 
@@ -1569,6 +1632,34 @@
       <button class="cm-delete-btn" id="cm-delete-btn" style="display:none;" onclick="deleteContractorFromModal()">&#128465; Delete</button>
       <button class="btn-archive" onclick="closeContractorModal()">Cancel</button>
       <button class="btn-save" onclick="saveContractor()">Save Contractor</button>
+    </div>
+  </div>
+</div>
+
+<!-- GENERIC DIRECTORY MODAL — Districts & AHJ, config-driven -->
+<div id="directory-modal-overlay">
+  <div id="directory-modal">
+    <div class="cm-header">
+      <h3 id="dm-modal-title">ADD ENTRY</h3>
+      <button id="dm-close" onclick="closeDirectoryModal()">✕</button>
+    </div>
+    <div class="cm-body">
+      <div class="cm-logo-row">
+        <div class="cm-logo-preview" id="dm-logo-preview" onclick="document.getElementById('dm-logo-upload').click()">
+          <span class="cm-logo-hint">Click to upload logo</span>
+        </div>
+        <div class="cm-logo-info">
+          <strong id="dm-logo-info-title">Logo</strong>
+          Optional. Displays on the card for quick visual identification.
+        </div>
+        <input type="file" id="dm-logo-upload" accept="image/*">
+      </div>
+      <div id="dm-fields"></div>
+    </div>
+    <div class="cm-footer">
+      <button class="cm-delete-btn" id="dm-delete-btn" style="display:none;" onclick="deleteDirectoryItemFromModal()">&#128465; Delete</button>
+      <button class="btn-archive" onclick="closeDirectoryModal()">Cancel</button>
+      <button class="btn-save" onclick="saveDirectoryItem()">Save</button>
     </div>
   </div>
 </div>
@@ -1935,19 +2026,19 @@ function persistContractors(contractor) {
 // ════════════════════════════════════════════════════════
 // TAB SWITCH
 // ════════════════════════════════════════════════════════
+const APP_TAB_IDS = ['playground','sandbox','rolodex','districts','ahj'];
 function switchTab(tab) {
   currentTab = tab;
-  document.getElementById('tab-playground').style.display = tab === 'playground' ? '' : 'none';
-  document.getElementById('tab-sandbox').style.display    = tab === 'sandbox'    ? '' : 'none';
-  document.getElementById('tab-rolodex').style.display    = tab === 'rolodex'    ? '' : 'none';
-  document.querySelectorAll('.nav-tab').forEach((el,i) => {
-    el.classList.toggle('active',
-      (i===0 && tab==='playground') ||
-      (i===1 && tab==='sandbox')    ||
-      (i===2 && tab==='rolodex')
-    );
+  APP_TAB_IDS.forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = (t === tab) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
   });
   if (tab === 'rolodex') renderRolodex();
+  else if (tab === 'districts') renderDirectory('districts');
+  else if (tab === 'ahj') renderDirectory('ahj');
   else renderGrid();
 }
 
@@ -2903,6 +2994,223 @@ function deleteContractorFromModal() {
   deleteContractor(cid);
   if (!contractors.find(x => x.id === cid)) closeContractorModal();
 }
+
+// ════════════════════════════════════════════════════════
+// DIRECTORY ROLODEXES — Districts & AHJ Submission contacts
+// Generic, config-driven; reuses contractor-card visual style
+// (.contractor-grid/.contractor-card/.cm-* classes) so both
+// look and feel identical to the existing Rolodex. Runs on its
+// own persistence path — never touches projects/contractors
+// state, so there's zero risk to what's already working.
+// ════════════════════════════════════════════════════════
+const DIRECTORY_CONFIGS = {
+  districts: {
+    label: 'District Rolodex',
+    fsCollection: 'ics_districts',
+    lsKey: 'ics_crm_districts_v1',
+    fields: [
+      { key: 'name',        label: 'District Name *',    placeholder: 'e.g. Anaheim Union High School District' },
+      { key: 'contactName', label: 'Point of Contact',   placeholder: 'Name' },
+      { key: 'address',     label: 'Address',            placeholder: 'City, State, ZIP' },
+      { key: 'phone',       label: 'Phone',               placeholder: '(000) 000-0000' },
+      { key: 'email',       label: 'Email',               placeholder: 'contact@district.org' },
+      { key: 'website',     label: 'Website',             placeholder: 'https://...' },
+      { key: 'notes',       label: 'Notes / Other Info', placeholder: 'Anything else worth knowing at a glance...', textarea: true }
+    ]
+  },
+  ahj: {
+    label: 'AHJ Submission Rolodex',
+    fsCollection: 'ics_ahj',
+    lsKey: 'ics_crm_ahj_v1',
+    fields: [
+      { key: 'name',        label: 'AHJ / Jurisdiction Name *', placeholder: 'e.g. City of Anaheim Building & Safety' },
+      { key: 'contactName', label: 'Contact Person',      placeholder: 'Name' },
+      { key: 'address',     label: 'Address',              placeholder: 'City, State, ZIP' },
+      { key: 'phone',       label: 'Phone',                 placeholder: '(000) 000-0000' },
+      { key: 'email',       label: 'Email',                 placeholder: 'contact@city.gov' },
+      { key: 'website',     label: 'Website',               placeholder: 'https://...' },
+      { key: 'portalLink',  label: 'Submission Portal Link', placeholder: 'https://...' },
+      { key: 'notes',       label: 'Submission Notes',      placeholder: 'Required sets, portal login, fees, turnaround time...', textarea: true }
+    ]
+  }
+};
+
+let directoryData = { districts: [], ahj: [] };
+let dmEditType = null;
+let dmEditId = null;
+let dmLogoData = null;
+
+function persistDirectoryLocal(type) {
+  try { localStorage.setItem(DIRECTORY_CONFIGS[type].lsKey, JSON.stringify(directoryData[type])); }
+  catch(e) { console.warn('ICS CRM: directory localStorage write failed', e); }
+}
+
+function loadDirectoryLocal(type) {
+  try {
+    const raw = localStorage.getItem(DIRECTORY_CONFIGS[type].lsKey);
+    if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr)) directoryData[type] = arr; }
+  } catch(e) { console.warn('ICS CRM: directory localStorage read failed', e); }
+}
+
+async function loadDirectoryFromFirestore(type) {
+  try {
+    const snap = await db.collection(DIRECTORY_CONFIGS[type].fsCollection).get();
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (items.length > 0) { directoryData[type] = items; persistDirectoryLocal(type); }
+  } catch(e) { console.warn('ICS CRM: directory Firestore load failed for ' + type, e); }
+  if (currentTab === type) renderDirectory(type);
+}
+
+async function saveDirectoryItemToFirestore(type, item) {
+  try { await db.collection(DIRECTORY_CONFIGS[type].fsCollection).doc(item.id).set(item); }
+  catch(e) { console.warn('ICS CRM: directory Firestore save failed for ' + type, e); }
+}
+
+async function deleteDirectoryItemFromFirestore(type, id) {
+  try { await db.collection(DIRECTORY_CONFIGS[type].fsCollection).doc(id).delete(); }
+  catch(e) { console.warn('ICS CRM: directory Firestore delete failed for ' + type, e); }
+}
+
+function initDirectories() {
+  ['districts','ahj'].forEach(type => {
+    loadDirectoryLocal(type);
+    loadDirectoryFromFirestore(type);
+  });
+}
+
+function renderDirectory(type) {
+  const grid = document.getElementById(type + '-grid');
+  const countEl = document.getElementById(type + '-count');
+  if (countEl) countEl.textContent = '(' + directoryData[type].length + ')';
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (directoryData[type].length === 0) {
+    grid.innerHTML = '<div class="empty-state">NO ENTRIES — CLICK + ADD</div>';
+    return;
+  }
+  const sortEl = document.getElementById(type + '-sort');
+  const sortMode = sortEl ? sortEl.value : 'az';
+  const sorted = [...directoryData[type]];
+  const sortFn = {
+    az:     (a,b) => (a.name||'').localeCompare(b.name||''),
+    za:     (a,b) => (b.name||'').localeCompare(a.name||''),
+    newest: (a,b) => parseCreatedDate(b.created) - parseCreatedDate(a.created),
+    oldest: (a,b) => parseCreatedDate(a.created) - parseCreatedDate(b.created),
+  }[sortMode];
+  if (sortFn) sorted.sort(sortFn);
+  sorted.forEach(item => grid.appendChild(buildDirectoryCard(type, item)));
+}
+
+function buildDirectoryCard(type, item) {
+  const card = document.createElement('div');
+  card.className = 'contractor-card';
+  const logoHTML = item.logo
+    ? `<img src="${item.logo}" alt="${item.name||''}">`
+    : `<div class="contractor-logo-placeholder"><div class="logo-icon">&#127970;</div><span>No Logo</span></div>`;
+  card.innerHTML = `
+    <div class="contractor-card-top" onclick="openDirectoryModal('${type}','${item.id}')" title="Click to edit">
+      ${logoHTML}
+    </div>
+    <div class="contractor-card-body">
+      <div class="con-name">${item.name||'—'}</div>
+      <div class="con-detail">
+        ${item.contactName ? `<span>&#128100; ${item.contactName}</span>` : ''}
+        ${item.address     ? `<span>&#128205; ${item.address}</span>`     : ''}
+        ${item.phone       ? `<span>&#128222; ${item.phone}</span>`       : ''}
+        ${item.email       ? `<span>&#9993; ${item.email}</span>`         : ''}
+        ${item.website     ? `<span>&#127760; ${item.website}</span>`     : ''}
+      </div>
+    </div>
+    <div class="contractor-card-actions">
+      <button class="con-edit-btn" onclick="openDirectoryModal('${type}','${item.id}')">&#9998; Edit</button>
+      <button class="con-del-btn"  onclick="deleteDirectoryItem('${type}','${item.id}')">&#128465; Delete</button>
+    </div>`;
+  return card;
+}
+
+function openDirectoryModal(type, id) {
+  const cfg = DIRECTORY_CONFIGS[type];
+  dmEditType = type;
+  dmEditId = id || null;
+  dmLogoData = null;
+  const item = id ? directoryData[type].find(x => x.id === id) : null;
+
+  document.getElementById('dm-modal-title').textContent = (id ? 'EDIT ' : 'ADD ') + cfg.label.toUpperCase();
+  document.getElementById('dm-logo-info-title').textContent = cfg.label.replace(' Rolodex','') + ' Logo';
+
+  const fieldsWrap = document.getElementById('dm-fields');
+  fieldsWrap.innerHTML = cfg.fields.map(f => {
+    const val = item ? (item[f.key] || '') : '';
+    const safeVal = String(val).replace(/"/g, '&quot;');
+    return f.textarea
+      ? `<div class="field-group"><label>${f.label}</label><textarea id="dm-f-${f.key}" rows="3" placeholder="${f.placeholder||''}">${val}</textarea></div>`
+      : `<div class="field-group"><label>${f.label}</label><input type="text" id="dm-f-${f.key}" value="${safeVal}" placeholder="${f.placeholder||''}"></div>`;
+  }).join('');
+
+  const preview = document.getElementById('dm-logo-preview');
+  preview.innerHTML = (item && item.logo)
+    ? `<img src="${item.logo}" alt="logo">`
+    : `<span class="cm-logo-hint">Click to upload logo</span>`;
+
+  document.getElementById('directory-modal-overlay').classList.add('open');
+  document.getElementById('dm-delete-btn').style.display = id ? 'inline-block' : 'none';
+}
+
+function closeDirectoryModal() {
+  document.getElementById('directory-modal-overlay').classList.remove('open');
+  dmEditType = null; dmEditId = null; dmLogoData = null;
+}
+
+function saveDirectoryItem() {
+  if (!dmEditType) return;
+  const cfg = DIRECTORY_CONFIGS[dmEditType];
+  const nameKey = cfg.fields[0].key;
+  const name = document.getElementById('dm-f-' + nameKey).value.trim();
+  if (!name) { alert(cfg.fields[0].label.replace(' *','') + ' is required.'); return; }
+
+  let item = dmEditId ? directoryData[dmEditType].find(x => x.id === dmEditId) : null;
+  if (!item) { item = { id: uid(), created: now() }; directoryData[dmEditType].push(item); }
+
+  cfg.fields.forEach(f => { item[f.key] = document.getElementById('dm-f-' + f.key).value.trim(); });
+  if (dmLogoData) item.logo = dmLogoData;
+
+  const type = dmEditType;
+  persistDirectoryLocal(type);
+  saveDirectoryItemToFirestore(type, item);
+  renderDirectory(type);
+  closeDirectoryModal();
+}
+
+function deleteDirectoryItem(type, id) {
+  const item = directoryData[type].find(x => x.id === id); if (!item) return;
+  if (!confirm(`Remove "${item.name}" from the ${DIRECTORY_CONFIGS[type].label}?`)) return;
+  directoryData[type] = directoryData[type].filter(x => x.id !== id);
+  deleteDirectoryItemFromFirestore(type, id);
+  persistDirectoryLocal(type);
+  renderDirectory(type);
+}
+
+function deleteDirectoryItemFromModal() {
+  if (!dmEditType || !dmEditId) return;
+  const type = dmEditType, id = dmEditId;
+  deleteDirectoryItem(type, id);
+  if (!directoryData[type].find(x => x.id === id)) closeDirectoryModal();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const dmUpload = document.getElementById('dm-logo-upload');
+  if (dmUpload) {
+    dmUpload.addEventListener('change', function() {
+      const file = this.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        dmLogoData = e.target.result;
+        document.getElementById('dm-logo-preview').innerHTML = `<img src="${dmLogoData}" alt="logo">`;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const upload = document.getElementById('cm-logo-upload');
@@ -4158,6 +4466,7 @@ async function initializeCRMData() {
   renderOverdueBanner();
   await seedProjectsIfEmpty(); // Push seed data if Firestore is empty
   loadFromFirestore();    // Then pull Firestore and refresh (async)
+  initDirectories();      // Districts & AHJ Rolodexes — independent data layer
 }
 </script>
 
