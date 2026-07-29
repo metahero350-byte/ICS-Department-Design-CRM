@@ -1183,6 +1183,7 @@
     <button class="nav-tab" data-tab="rolodex" onclick="switchTab('rolodex')">&#128218; Rolodex</button>
     <button class="nav-tab" data-tab="districts" onclick="switchTab('districts')">&#127970; Districts</button>
     <button class="nav-tab" data-tab="ahj" onclick="switchTab('ahj')">&#127959; AHJ</button>
+    <button class="nav-tab" data-tab="vendors" onclick="switchTab('vendors')">&#128230; Vendors</button>
   </nav>
   <div id="sync-indicator">
     <div id="sync-dot"></div>
@@ -1324,6 +1325,33 @@
       </div>
     </div>
     <div class="contractor-grid" id="ahj-grid"></div>
+  </div>
+
+  <div id="tab-vendors" style="display:none">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div class="section-label">Parts Ordering Directory</div>
+        <div class="section-title">Vendors <span id="vendors-count" class="count-badge"></span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;">Sort</label>
+          <select id="vendors-sort" onchange="renderDirectory('vendors')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;font-size:11px;font-family:inherit;border-radius:2px;outline:none;">
+            <option value="az">A &#8594; Z</option>
+            <option value="za">Z &#8594; A</option>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      <button onclick="openDirectoryModal('vendors', null)"
+        style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
+        onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
+        onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
+        + Add Vendor
+      </button>
+      </div>
+    </div>
+    <div class="contractor-grid" id="vendors-grid"></div>
   </div>
 </div>
 
@@ -2026,7 +2054,7 @@ function persistContractors(contractor) {
 // ════════════════════════════════════════════════════════
 // TAB SWITCH
 // ════════════════════════════════════════════════════════
-const APP_TAB_IDS = ['playground','sandbox','rolodex','districts','ahj'];
+const APP_TAB_IDS = ['playground','sandbox','rolodex','districts','ahj','vendors'];
 function switchTab(tab) {
   currentTab = tab;
   APP_TAB_IDS.forEach(t => {
@@ -2039,6 +2067,7 @@ function switchTab(tab) {
   if (tab === 'rolodex') renderRolodex();
   else if (tab === 'districts') renderDirectory('districts');
   else if (tab === 'ahj') renderDirectory('ahj');
+  else if (tab === 'vendors') renderDirectory('vendors');
   else renderGrid();
 }
 
@@ -3032,10 +3061,22 @@ const DIRECTORY_CONFIGS = {
       { key: 'portalLink',  label: 'Submission Portal Link', placeholder: 'https://...' },
       { key: 'notes',       label: 'Submission Notes',      placeholder: 'Required sets, portal login, fees, turnaround time...', textarea: true }
     ]
+  },
+  vendors: {
+    label: 'Vendor Rolodex',
+    fsCollection: 'ics_vendors',
+    lsKey: 'ics_crm_vendors_v1',
+    fields: [
+      { key: 'name',        label: 'Company Name *',    placeholder: 'e.g. Graybar Electric' },
+      { key: 'contactName', label: 'Point of Contact',  placeholder: 'Name' },
+      { key: 'phone',       label: 'Phone',              placeholder: '(000) 000-0000' },
+      { key: 'email',       label: 'Email',              placeholder: 'contact@vendor.com' },
+      { key: 'notes',       label: 'Notes',              placeholder: 'Account #, order minimums, lead times, etc.', textarea: true }
+    ]
   }
 };
 
-let directoryData = { districts: [], ahj: [] };
+let directoryData = { districts: [], ahj: [], vendors: [] };
 let dmEditType = null;
 let dmEditId = null;
 let dmLogoData = null;
@@ -3072,7 +3113,7 @@ async function deleteDirectoryItemFromFirestore(type, id) {
 }
 
 function initDirectories() {
-  ['districts','ahj'].forEach(type => {
+  ['districts','ahj','vendors'].forEach(type => {
     loadDirectoryLocal(type);
     loadDirectoryFromFirestore(type);
   });
