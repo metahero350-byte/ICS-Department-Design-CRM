@@ -1487,6 +1487,30 @@
         </div>
 
         <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-biddocs" onclick="toggleSection('sec-biddocs')">Bid Docs<span class="chevron">&#9662;</span></div>
+          <div id="sec-biddocs">
+          <div class="doclinks-grid" id="biddocs-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('bidDocs')">+ Add Bid Doc</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-addendums" onclick="toggleSection('sec-addendums')">Addendums<span class="chevron">&#9662;</span></div>
+          <div id="sec-addendums">
+          <div class="doclinks-grid" id="addendums-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('addendums')">+ Add Addendum</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-specs" onclick="toggleSection('sec-specs')">Specs<span class="chevron">&#9662;</span></div>
+          <div id="sec-specs">
+          <div class="doclinks-grid" id="specs-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('specs')">+ Add Spec</button>
+          </div>
+        </div>
+
+        <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-plans" onclick="toggleSection('sec-plans')">Approved Shop Drawings/ PLANS<span class="chevron">&#9662;</span></div>
           <div id="sec-plans">
           <div class="doclinks-grid" id="plans-list"></div>
@@ -1503,14 +1527,6 @@
         </div>
 
         <div class="section-block">
-          <div class="section-block-title collapsible-title" id="hdr-sec-closeouts" onclick="toggleSection('sec-closeouts')">Closeouts<span class="chevron">&#9662;</span></div>
-          <div id="sec-closeouts">
-          <div class="doclinks-grid" id="closeouts-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('closeouts')">+ Add Closeout</button>
-          </div>
-        </div>
-
-        <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-rfis" onclick="toggleSection('sec-rfis')">RFI's<span class="chevron">&#9662;</span></div>
           <div id="sec-rfis">
           <div class="doclinks-grid" id="rfis-list"></div>
@@ -1523,6 +1539,14 @@
           <div id="sec-cos">
           <div class="doclinks-grid" id="co-list"></div>
           <button class="add-sub-btn" onclick="addDocListItem('changeOrders')">+ Add Change Order</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-closeouts" onclick="toggleSection('sec-closeouts')">Closeouts<span class="chevron">&#9662;</span></div>
+          <div id="sec-closeouts">
+          <div class="doclinks-grid" id="closeouts-list"></div>
+          <button class="add-sub-btn" onclick="addDocListItem('closeouts')">+ Add Closeout</button>
           </div>
         </div>
 
@@ -2215,7 +2239,7 @@ function createProject() {
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     systemPlans: [],
-    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [],
+    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2238,7 +2262,7 @@ function createProject() {
 // COLLAPSIBLE JOB CARD SECTIONS
 // ════════════════════════════════════════════════════════
 const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
-const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-plans','sec-apd','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-biddocs','sec-addendums','sec-specs','sec-plans','sec-apd','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes'];
 
 function setSectionState(id, collapsed) {
   const content = document.getElementById(id);
@@ -2281,7 +2305,7 @@ function openProject(id) {
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
   renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p);
-  renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders'); renderDocList(p, 'approvedProductData'); renderDocList(p, 'closeouts');
+  renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders'); renderDocList(p, 'approvedProductData'); renderDocList(p, 'closeouts'); renderDocList(p, 'bidDocs'); renderDocList(p, 'specs'); renderDocList(p, 'addendums');
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
   resetJobCardSections();
@@ -3402,15 +3426,14 @@ function openLinkField(inputId) {
 }
 
 // ════════════════════════════════════════════════════════
-// DOCUMENT LINKS — Specs / Addendums / Job Notice /
-// Schedule / Estimate / Proposal / Take-offs
-// (Plans moved to its own dynamic multi-entry section below —
-// existing p.docLinks.plans values are preserved and auto-migrated
-// into the new Plans list the first time a job card renders.)
+// DOCUMENT LINKS — Job Notice / Schedule / Estimate /
+// Proposal / Take-offs
+// (Plans, Specs, and Addendums moved to their own dynamic
+// multi-entry sections below — existing p.docLinks values for
+// all three are preserved and auto-migrated into their new list
+// the first time a job card renders.)
 // ════════════════════════════════════════════════════════
 const DOC_LINK_FIELDS = [
-  { key: 'specs',      label: 'Specs' },
-  { key: 'addendums',  label: 'Addendums' },
   { key: 'jobNotice',  label: 'Job Notice' },
   { key: 'schedule',   label: 'Schedule' },
   { key: 'estimate',   label: 'Estimate' },
@@ -3580,11 +3603,14 @@ async function uploadSystemPlanFile(id, file) {
 // p.rfis, p.changeOrders — each item is { id, label, url }.
 // ════════════════════════════════════════════════════════
 const DOC_LIST_CONFIGS = {
-  plans:               { field: 'plansList',           gridId: 'plans-list',     zonePrefix: 'plan' },
-  rfis:                { field: 'rfis',                 gridId: 'rfis-list',      zonePrefix: 'rfi'  },
-  changeOrders:         { field: 'changeOrders',         gridId: 'co-list',        zonePrefix: 'co'   },
-  approvedProductData:  { field: 'approvedProductData',  gridId: 'apd-list',       zonePrefix: 'apd'  },
-  closeouts:            { field: 'closeouts',            gridId: 'closeouts-list', zonePrefix: 'clo'  }
+  bidDocs:              { field: 'bidDocs',              gridId: 'biddocs-list',    zonePrefix: 'bid'  },
+  specs:                { field: 'specsList',             gridId: 'specs-list',      zonePrefix: 'spec', migrateFrom: 'specs',     migrateLabel: 'Specs' },
+  addendums:            { field: 'addendumsList',         gridId: 'addendums-list',  zonePrefix: 'add',  migrateFrom: 'addendums', migrateLabel: 'Addendums' },
+  plans:                { field: 'plansList',             gridId: 'plans-list',      zonePrefix: 'plan', migrateFrom: 'plans',     migrateLabel: 'Plans' },
+  rfis:                 { field: 'rfis',                  gridId: 'rfis-list',       zonePrefix: 'rfi'  },
+  changeOrders:          { field: 'changeOrders',          gridId: 'co-list',         zonePrefix: 'co'   },
+  approvedProductData:   { field: 'approvedProductData',   gridId: 'apd-list',        zonePrefix: 'apd'  },
+  closeouts:             { field: 'closeouts',             gridId: 'closeouts-list',  zonePrefix: 'clo'  }
 };
 
 function renderDocList(p, listKey) {
@@ -3593,12 +3619,12 @@ function renderDocList(p, listKey) {
   if (!wrap) return;
   p[cfg.field] = p[cfg.field] || [];
 
-  // One-time, non-destructive migration: if the old fixed "Plans" doc
-  // link has a value and the new list is still empty, carry it over as
-  // the first entry instead of silently losing it. The old field is left
-  // untouched (not cleared) so nothing is destroyed in the process.
-  if (listKey === 'plans' && p[cfg.field].length === 0 && p.docLinks && p.docLinks.plans) {
-    p[cfg.field].push({ id: uid(), label: 'Plans', url: p.docLinks.plans });
+  // One-time, non-destructive migration: if the old fixed doc link (Plans,
+  // Specs, or Addendums) has a value and the new list is still empty, carry
+  // it over as the first entry instead of silently losing it. The old field
+  // is left untouched (not cleared) so nothing is destroyed in the process.
+  if (cfg.migrateFrom && p[cfg.field].length === 0 && p.docLinks && p.docLinks[cfg.migrateFrom]) {
+    p[cfg.field].push({ id: uid(), label: cfg.migrateLabel, url: p.docLinks[cfg.migrateFrom] });
   }
 
   wrap.innerHTML = '';
