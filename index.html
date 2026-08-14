@@ -887,6 +887,15 @@
   }
   #logout-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
 
+  #refresh-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 15px; padding: 4px 9px;
+    cursor: pointer; border-radius: 2px; line-height: 1; transition: all 0.15s;
+  }
+  #refresh-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+  #refresh-btn.spinning { animation: refresh-spin 0.7s linear infinite; color: var(--ics-red); border-color: var(--ics-red); }
+  @keyframes refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   #theme-toggle-btn {
     background: transparent; border: 1px solid var(--border);
     color: var(--text-dim); font-size: 14px; padding: 4px 9px;
@@ -1364,6 +1373,7 @@
     <div id="sync-dot"></div>
     <span id="sync-label">Connecting...</span>
   </div>
+  <button id="refresh-btn" onclick="refreshApp()" title="Refresh data">&#8635;</button>
   <button id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode">&#127769;</button>
   <div id="presence-wrap">
     <button id="presence-btn" onclick="togglePresencePanel()" title="Who's active right now">&#128101; <span id="presence-count">0</span></button>
@@ -1974,6 +1984,20 @@ if ('serviceWorker' in navigator) {
 // ════════════════════════════════════════════════════════
 // LIGHT / DARK MODE TOGGLE
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// REFRESH BUTTON — same effect as closing/reopening the app,
+// without actually having to leave it. A clean full reload is
+// the most reliable way to guarantee every data store (projects,
+// contractors, districts, AHJ, vendors, presence, your role) is
+// pulled fresh and consistent, rather than trying to selectively
+// re-fetch each one in place and risk missing something.
+// ════════════════════════════════════════════════════════
+function refreshApp() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) btn.classList.add('spinning');
+  setTimeout(() => { location.reload(); }, 200);
+}
+
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
   localStorage.setItem('ics_theme', isLight ? 'light' : 'dark');
