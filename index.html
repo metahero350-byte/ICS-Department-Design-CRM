@@ -2151,7 +2151,7 @@ function applyRolePermissions() {
   document.body.classList.remove('role-admin','role-editor','role-contributor','role-viewer');
   document.body.classList.add('role-' + currentUserRole);
   const manageUsersBtn = document.getElementById('manage-users-btn');
-  if (manageUsersBtn) manageUsersBtn.style.display = (currentUserRole === 'admin') ? '' : 'none';
+  if (manageUsersBtn) manageUsersBtn.style.display = (currentUserRole === 'admin') ? 'inline-block' : 'none';
   const roleLabel = { admin: 'Admin', editor: 'Editor', contributor: 'Contributor', viewer: 'Viewer' }[currentUserRole] || '';
   const roleIndicator = document.getElementById('role-indicator');
   if (roleIndicator) roleIndicator.textContent = roleLabel;
