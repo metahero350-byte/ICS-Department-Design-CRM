@@ -232,6 +232,32 @@
   .collapsible-title .chevron { font-size: 9px; color: var(--text-muted); transition: transform 0.15s; }
   .collapsible-title.sec-closed .chevron { transform: rotate(-90deg); }
   .sec-collapsed { display: none; }
+
+  /* ─── ROLE-BASED PERMISSIONS ───
+     .jc-lockable: locked for Viewer AND Contributor alike (sidebar
+     fields, tasks, submittals, notes, Save/Archive, create-new
+     buttons, edit/save on Rolodex-style cards). Contributor's one
+     exception (document uploads) is handled by JS-level conditional
+     rendering in the doc-list render functions, not by this class.
+     [data-perm="delete"]: hidden entirely for anyone but Admin. */
+  body.role-viewer .jc-lockable,
+  body.role-contributor .jc-lockable {
+    pointer-events: none;
+    opacity: 0.5;
+    filter: grayscale(0.3);
+  }
+  body.role-editor [data-perm="delete"],
+  body.role-contributor [data-perm="delete"],
+  body.role-viewer [data-perm="delete"] {
+    display: none !important;
+  }
+  #manage-users-btn { display: none; }
+  body.role-viewer [data-perm="add-docs"] { display: none !important; }
+  .role-badge {
+    font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 2px; border: 1px solid var(--border); color: var(--text-muted);
+  }
+  body.role-admin .role-badge { border-color: var(--ics-red); color: var(--ics-red); }
   .count-badge { font-size: 12px; font-weight: 400; color: var(--text-muted); }
 
   /* ─── AT-A-GLANCE MODAL ─── */
@@ -677,6 +703,21 @@
   #dm-close:hover { color: var(--ics-red); }
   #dm-logo-upload { display: none; }
 
+  #manage-users-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 360; align-items: center; justify-content: center; padding: 20px; }
+  #manage-users-overlay.open { display: flex; }
+  #manage-users-modal { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--ics-red); width: 100%; max-width: 520px; max-height: 82vh; overflow-y: auto; border-radius: 4px; }
+  .mu-intro { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.5; }
+  .mu-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .mu-row:last-child { border-bottom: none; }
+  .mu-email { flex: 1; font-size: 13px; color: var(--text); word-break: break-all; }
+  .mu-email .mu-you { color: var(--ics-red); font-size: 10px; font-weight: 700; margin-left: 6px; letter-spacing: 0.5px; }
+  .mu-role-select {
+    background: var(--surface3); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 8px; font-size: 12px; font-family: inherit; border-radius: 2px; outline: none;
+  }
+  .mu-role-select:focus { border-color: var(--ics-red); }
+  .mu-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 10px 0; }
+
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
   .combobox-input-row { display: flex; gap: 0; }
@@ -713,6 +754,8 @@
   .doclink-file-input { display: none; }
   .doclink-replace { font-size: 10px; color: var(--text-muted); cursor: pointer; text-decoration: underline; flex-shrink: 0; }
   .doclink-replace:hover { color: var(--ics-red); }
+  .doclink-empty-note { flex: 1; color: var(--text-muted); font-size: 11px; font-style: italic; }
+  .sysplan-label-readonly { width: 130px; flex-shrink: 0; padding: 6px 8px; font-size: 12px; color: var(--text-dim); }
   .sysplan-label-input { width: 130px; flex-shrink: 0; background: var(--surface3); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none; border-radius: 2px; }
   .sysplan-label-input:focus { border-color: var(--ics-red); }
   .sysplan-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 4px; flex-shrink: 0; }
@@ -859,6 +902,12 @@
     display: flex; align-items: center; gap: 5px; transition: all 0.15s;
   }
   #presence-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+  #manage-users-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; font-weight: 700;
+    padding: 4px 10px; cursor: pointer; border-radius: 2px; transition: all 0.15s;
+  }
+  #manage-users-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
   #presence-count { color: var(--green); font-weight: 700; }
   #presence-panel {
     display: none; position: absolute; top: calc(100% + 6px); right: 0;
@@ -1320,11 +1369,13 @@
     <button id="presence-btn" onclick="togglePresencePanel()" title="Who's active right now">&#128101; <span id="presence-count">0</span></button>
     <div id="presence-panel"></div>
   </div>
+  <button id="manage-users-btn" onclick="openManageUsers()" title="Manage team permissions">&#128274; Users</button>
   <div id="user-menu">
     <span class="user-email" id="user-email-label"></span>
+    <span id="role-indicator" class="role-badge"></span>
     <button id="logout-btn" onclick="handleLogout()">Sign Out</button>
   </div>
-  <button id="add-project-btn" onclick="openNewProject()">+ New Project</button>
+  <button id="add-project-btn" class="jc-lockable" onclick="openNewProject()">+ New Project</button>
 </div>
 
 <!-- OVERDUE NOTIFICATION BANNER -->
@@ -1393,7 +1444,7 @@
             <option value="oldest">Oldest First</option>
           </select>
         </div>
-      <button id="add-contractor-btn" onclick="openContractorModal(null)"
+      <button id="add-contractor-btn" class="jc-lockable" onclick="openContractorModal(null)"
         style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
         onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
         onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
@@ -1420,7 +1471,7 @@
             <option value="oldest">Oldest First</option>
           </select>
         </div>
-      <button onclick="openDirectoryModal('districts', null)"
+      <button class="jc-lockable" onclick="openDirectoryModal('districts', null)"
         style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
         onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
         onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
@@ -1447,7 +1498,7 @@
             <option value="oldest">Oldest First</option>
           </select>
         </div>
-      <button onclick="openDirectoryModal('ahj', null)"
+      <button class="jc-lockable" onclick="openDirectoryModal('ahj', null)"
         style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
         onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
         onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
@@ -1474,7 +1525,7 @@
             <option value="oldest">Oldest First</option>
           </select>
         </div>
-      <button onclick="openDirectoryModal('vendors', null)"
+      <button class="jc-lockable" onclick="openDirectoryModal('vendors', null)"
         style="padding:6px 16px;background:transparent;border:1px solid var(--ics-red);color:var(--ics-red);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;"
         onmouseover="this.style.background='var(--ics-red)';this.style.color='white'"
         onmouseout="this.style.background='transparent';this.style.color='var(--ics-red)'">
@@ -1496,7 +1547,7 @@
       <button id="close-modal" onclick="closeModal()">✕</button>
     </div>
     <div class="jc-body">
-      <div class="jc-sidebar">
+      <div class="jc-sidebar jc-lockable">
         <div class="sidebar-section-title collapsible-title sec-closed" id="hdr-sec-contractor" onclick="toggleSection('sec-contractor')">Contractor Info<span class="chevron">&#9662;</span></div>
         <div class="sec-collapsed" id="sec-contractor">
         <div class="field-group">
@@ -1578,7 +1629,7 @@
       <div class="jc-main">
         <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-whatsnext" onclick="toggleSection('sec-whatsnext')">What's Next — Priority Queue<span class="chevron">&#9662;</span></div>
-          <div id="sec-whatsnext">
+          <div id="sec-whatsnext" class="jc-lockable">
           <ul class="task-list" id="task-list"></ul>
           <div class="add-task-row">
             <input type="text" id="new-task-input" placeholder="Add task...">
@@ -1589,7 +1640,7 @@
 
         <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-submittals" onclick="toggleSection('sec-submittals')">Submittals<span class="chevron">&#9662;</span></div>
-          <div id="sec-submittals">
+          <div id="sec-submittals" class="jc-lockable">
           <div class="submittal-table-wrap">
           <table class="submittal-table">
             <thead>
@@ -1621,7 +1672,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-biddocs" onclick="toggleSection('sec-biddocs')">Bid Docs<span class="chevron">&#9662;</span></div>
           <div id="sec-biddocs">
           <div class="doclinks-grid" id="biddocs-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('bidDocs')">+ Add Bid Doc</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('bidDocs')">+ Add Bid Doc</button>
           </div>
         </div>
 
@@ -1629,7 +1680,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-addendums" onclick="toggleSection('sec-addendums')">Addendums<span class="chevron">&#9662;</span></div>
           <div id="sec-addendums">
           <div class="doclinks-grid" id="addendums-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('addendums')">+ Add Addendum</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('addendums')">+ Add Addendum</button>
           </div>
         </div>
 
@@ -1637,7 +1688,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-specs" onclick="toggleSection('sec-specs')">Specs<span class="chevron">&#9662;</span></div>
           <div id="sec-specs">
           <div class="doclinks-grid" id="specs-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('specs')">+ Add Spec</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('specs')">+ Add Spec</button>
           </div>
         </div>
 
@@ -1645,7 +1696,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-plans" onclick="toggleSection('sec-plans')">Approved Shop Drawings/ PLANS<span class="chevron">&#9662;</span></div>
           <div id="sec-plans">
           <div class="doclinks-grid" id="plans-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('plans')">+ Add Plan Set</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('plans')">+ Add Plan Set</button>
           </div>
         </div>
 
@@ -1653,7 +1704,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-apd" onclick="toggleSection('sec-apd')">Approved Product Data Submittals<span class="chevron">&#9662;</span></div>
           <div id="sec-apd">
           <div class="doclinks-grid" id="apd-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('approvedProductData')">+ Add Submittal</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('approvedProductData')">+ Add Submittal</button>
           </div>
         </div>
 
@@ -1661,7 +1712,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-rfis" onclick="toggleSection('sec-rfis')">RFI's<span class="chevron">&#9662;</span></div>
           <div id="sec-rfis">
           <div class="doclinks-grid" id="rfis-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('rfis')">+ Add RFI</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('rfis')">+ Add RFI</button>
           </div>
         </div>
 
@@ -1669,7 +1720,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-cos" onclick="toggleSection('sec-cos')">Change Orders<span class="chevron">&#9662;</span></div>
           <div id="sec-cos">
           <div class="doclinks-grid" id="co-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('changeOrders')">+ Add Change Order</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('changeOrders')">+ Add Change Order</button>
           </div>
         </div>
 
@@ -1677,7 +1728,7 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-closeouts" onclick="toggleSection('sec-closeouts')">Closeouts<span class="chevron">&#9662;</span></div>
           <div id="sec-closeouts">
           <div class="doclinks-grid" id="closeouts-list"></div>
-          <button class="add-sub-btn" onclick="addDocListItem('closeouts')">+ Add Closeout</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('closeouts')">+ Add Closeout</button>
           </div>
         </div>
 
@@ -1685,13 +1736,13 @@
           <div class="section-block-title collapsible-title" id="hdr-sec-sysplans" onclick="toggleSection('sec-sysplans')">Additional Documentation<span class="chevron">&#9662;</span></div>
           <div id="sec-sysplans">
           <div class="doclinks-grid" id="system-plans-list"></div>
-          <button class="add-sub-btn" onclick="addSystemPlan()">+ Add Document</button>
+          <button class="add-sub-btn" data-perm="add-docs" onclick="addSystemPlan()">+ Add Document</button>
           </div>
         </div>
 
         <div class="section-block">
           <div class="section-block-title collapsible-title" id="hdr-sec-notes" onclick="toggleSection('sec-notes')">General Notes — Running Log<span class="chevron">&#9662;</span></div>
-          <div id="sec-notes">
+          <div id="sec-notes" class="jc-lockable">
           <div class="notes-log" id="notes-log"></div>
           <div class="add-note-row">
             <div class="add-note-date-row">
@@ -1709,9 +1760,9 @@
 
     <div class="jc-save-bar">
       <span class="status-msg" id="save-status"></span>
-      <button class="btn-archive" onclick="archiveProject()">Archive</button>
+      <button class="btn-archive jc-lockable" onclick="archiveProject()">Archive</button>
       <button class="btn-report" onclick="generateReport()">&#128196; Summary Report</button>
-      <button class="btn-save" onclick="saveProject()">Save Project</button>
+      <button class="btn-save jc-lockable" onclick="saveProject()">Save Project</button>
     </div>
   </div>
 </div>
@@ -1783,7 +1834,7 @@
     </div>
     <div class="npf-footer">
       <button class="btn-archive" onclick="closeNewProject()">Cancel</button>
-      <button class="btn-save" onclick="createProject()">Create Project</button>
+      <button class="btn-save jc-lockable" onclick="createProject()">Create Project</button>
     </div>
   </div>
 </div>
@@ -1796,7 +1847,7 @@
       <h3 id="cm-modal-title">ADD CONTRACTOR</h3>
       <button id="cm-close" onclick="closeContractorModal()">✕</button>
     </div>
-    <div class="cm-body">
+    <div class="cm-body jc-lockable">
       <div class="cm-logo-row">
         <div class="cm-logo-preview" id="cm-logo-preview" onclick="document.getElementById('cm-logo-upload').click()">
           <span class="cm-logo-hint">Click to upload logo</span>
@@ -1812,9 +1863,9 @@
       <div class="field-group"><label>Email</label><input type="text" id="cm-email" placeholder="contact@company.com"></div>
     </div>
     <div class="cm-footer">
-      <button class="cm-delete-btn" id="cm-delete-btn" style="display:none;" onclick="deleteContractorFromModal()">&#128465; Delete</button>
+      <button class="cm-delete-btn" id="cm-delete-btn" data-perm="delete" style="display:none;" onclick="deleteContractorFromModal()">&#128465; Delete</button>
       <button class="btn-archive" onclick="closeContractorModal()">Cancel</button>
-      <button class="btn-save" onclick="saveContractor()">Save Contractor</button>
+      <button class="btn-save jc-lockable" onclick="saveContractor()">Save Contractor</button>
     </div>
   </div>
 </div>
@@ -1826,7 +1877,7 @@
       <h3 id="dm-modal-title">ADD ENTRY</h3>
       <button id="dm-close" onclick="closeDirectoryModal()">✕</button>
     </div>
-    <div class="cm-body">
+    <div class="cm-body jc-lockable">
       <div class="cm-logo-row">
         <div class="cm-logo-preview" id="dm-logo-preview" onclick="document.getElementById('dm-logo-upload').click()">
           <span class="cm-logo-hint">Click to upload logo</span>
@@ -1840,9 +1891,29 @@
       <div id="dm-fields"></div>
     </div>
     <div class="cm-footer">
-      <button class="cm-delete-btn" id="dm-delete-btn" style="display:none;" onclick="deleteDirectoryItemFromModal()">&#128465; Delete</button>
+      <button class="cm-delete-btn" id="dm-delete-btn" data-perm="delete" style="display:none;" onclick="deleteDirectoryItemFromModal()">&#128465; Delete</button>
       <button class="btn-archive" onclick="closeDirectoryModal()">Cancel</button>
-      <button class="btn-save" onclick="saveDirectoryItem()">Save</button>
+      <button class="btn-save jc-lockable" onclick="saveDirectoryItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE USERS MODAL — Admin only -->
+<div id="manage-users-overlay">
+  <div id="manage-users-modal">
+    <div class="cm-header">
+      <h3>MANAGE TEAM PERMISSIONS</h3>
+      <button onclick="closeManageUsers()">✕</button>
+    </div>
+    <div class="cm-body">
+      <p class="mu-intro">
+        Anyone who's ever signed in shows up here automatically as <strong>Editor</strong>.
+        Change their role below to restrict them.
+      </p>
+      <div id="mu-list"></div>
+    </div>
+    <div class="cm-footer">
+      <button class="btn-archive" onclick="closeManageUsers()">Close</button>
     </div>
   </div>
 </div>
@@ -1994,6 +2065,131 @@ document.addEventListener('click', e => {
   }
 });
 
+// ════════════════════════════════════════════════════════
+// ROLE-BASED PERMISSIONS
+// Four tiers:
+//   admin       — full access, including delete
+//   editor      — add + edit everything, no delete
+//   contributor — can ONLY add new document uploads (Document
+//                 Links, Plans, Bid Docs, Specs, Addendums,
+//                 Change Orders, RFI's, Closeouts, Approved
+//                 Product Data, Additional Documentation) —
+//                 everything else in the app is view-only.
+//                 Built specifically for field members adding
+//                 as-built documents without full CRM access.
+//   viewer      — fully read-only everywhere, no admin panel
+//
+// Enforcement is layered:
+//  1. This UI layer hides/disables controls so nobody who
+//     shouldn't be editing ever sees an edit control to begin
+//     with — this is what actually prevents "clumsy" mistakes
+//     in normal day-to-day use.
+//  2. Firestore rules are the real security backstop (see the
+//     rules block delivered alongside this update) — they
+//     reject the write server-side even if someone bypassed
+//     the UI entirely.
+// The one honest limitation: because document-list entries
+// (Plans, RFI's, etc.) live as arrays INSIDE the project
+// document rather than as separate documents, and saves are
+// full-document overwrites, Firestore rules can't cheaply
+// distinguish "a contributor only touched the doc-list fields"
+// from "a contributor rewrote the whole project." The rules
+// give contributor the same write scope as editor at the
+// database level; this UI layer is what actually keeps a
+// contributor's real-world experience limited to document
+// uploads. For the stated goal — stopping accidental clumsy
+// edits, not defending against a malicious insider — this is
+// the right tradeoff. Say the word if you ever want the
+// stricter (and more complex) field-level rule version instead.
+// ════════════════════════════════════════════════════════
+const ADMIN_BOOTSTRAP_EMAIL = 'a.duchane.icsservicenet@gmail.com';
+let currentUserRole = 'viewer'; // safe default until resolved
+
+async function resolveUserRole(user) {
+  try {
+    const ref = db.collection('ics_users').doc(user.uid);
+    const doc = await ref.get();
+    if (doc.exists) {
+      currentUserRole = doc.data().role || 'viewer';
+    } else {
+      const isBootstrapAdmin = (user.email || '').toLowerCase() === ADMIN_BOOTSTRAP_EMAIL;
+      currentUserRole = isBootstrapAdmin ? 'admin' : 'editor';
+      await ref.set({ email: user.email, role: currentUserRole, created: now() });
+    }
+  } catch(e) {
+    console.warn('ICS CRM: role resolution failed — defaulting to viewer for safety', e);
+    currentUserRole = 'viewer';
+  }
+  applyRolePermissions();
+}
+
+function applyRolePermissions() {
+  document.body.classList.remove('role-admin','role-editor','role-contributor','role-viewer');
+  document.body.classList.add('role-' + currentUserRole);
+  const manageUsersBtn = document.getElementById('manage-users-btn');
+  if (manageUsersBtn) manageUsersBtn.style.display = (currentUserRole === 'admin') ? '' : 'none';
+  const roleLabel = { admin: 'Admin', editor: 'Editor', contributor: 'Contributor', viewer: 'Viewer' }[currentUserRole] || '';
+  const roleIndicator = document.getElementById('role-indicator');
+  if (roleIndicator) roleIndicator.textContent = roleLabel;
+}
+
+function canEdit()   { return currentUserRole === 'admin' || currentUserRole === 'editor'; }
+function canDelete() { return currentUserRole === 'admin'; }
+function canAddDocs(){ return currentUserRole === 'admin' || currentUserRole === 'editor' || currentUserRole === 'contributor'; }
+
+// ─── MANAGE USERS PANEL (Admin only) ───
+function openManageUsers() {
+  if (currentUserRole !== 'admin') return;
+  document.getElementById('manage-users-overlay').classList.add('open');
+  loadUserList();
+}
+
+function closeManageUsers() {
+  document.getElementById('manage-users-overlay').classList.remove('open');
+}
+
+async function loadUserList() {
+  const list = document.getElementById('mu-list');
+  if (!list) return;
+  list.innerHTML = '<div class="mu-empty">Loading...</div>';
+  try {
+    const snap = await db.collection('ics_users').orderBy('email').get();
+    if (snap.empty) { list.innerHTML = '<div class="mu-empty">No one has signed in yet.</div>'; return; }
+    const myUid = auth.currentUser ? auth.currentUser.uid : null;
+    list.innerHTML = '';
+    snap.forEach(doc => {
+      const d = doc.data();
+      const uid = doc.id;
+      const isSelf = uid === myUid;
+      const role = d.role || 'editor';
+      const row = document.createElement('div');
+      row.className = 'mu-row';
+      row.innerHTML = `
+        <div class="mu-email">${d.email || '(no email on record)'}${isSelf ? '<span class="mu-you">YOU</span>' : ''}</div>
+        <select class="mu-role-select" ${isSelf ? 'disabled title="You cannot change your own role"' : ''} onchange="updateUserRole('${uid}', this.value)">
+          <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
+          <option value="editor" ${role==='editor'?'selected':''}>Editor</option>
+          <option value="contributor" ${role==='contributor'?'selected':''}>Contributor</option>
+          <option value="viewer" ${role==='viewer'?'selected':''}>Viewer</option>
+        </select>`;
+      list.appendChild(row);
+    });
+  } catch(e) {
+    console.warn('ICS CRM: failed to load user list', e);
+    list.innerHTML = '<div class="mu-empty">Couldn\'t load the user list — check the Firestore rules for ics_users.</div>';
+  }
+}
+
+async function updateUserRole(uid, newRole) {
+  try {
+    await db.collection('ics_users').doc(uid).update({ role: newRole });
+  } catch(e) {
+    console.warn('ICS CRM: role update failed', e);
+    alert('Could not update that role — check your connection or Firestore rules.');
+    loadUserList();
+  }
+}
+
 const FS_PROJECTS    = 'ics_projects';
 const FS_CONTRACTORS = 'ics_contractors';
 
@@ -2093,6 +2289,7 @@ auth.onAuthStateChanged(function(user) {
       initializeCRMData();
     }
     startPresence();
+    resolveUserRole(user);
   } else {
     // Not authenticated — show gate, hide app
     gate.classList.remove('hidden');
@@ -2644,7 +2841,7 @@ function renderTasks(p) {
         style="${t.done?'text-decoration:line-through;color:var(--text-muted)':''}">
         ${t.overdue ? '⚠ ' : i===0 && !t.overdue ? '▶ ' : ''}${t.text}
       </span>
-      ${!t.id.startsWith('auto-') ? `<button class="task-del" onclick="deleteTask('${t.id}')">✕</button>` : ''}`;
+      ${!t.id.startsWith('auto-') ? `<button class="task-del" data-perm="delete" onclick="deleteTask('${t.id}')">✕</button>` : ''}`;
     list.appendChild(li);
   });
 }
@@ -2773,7 +2970,7 @@ function renderSubmittals(p) {
       </td>
       <td data-label="Approved/Returned"><input type="date" value="${s.approvedDate||''}" onchange="updateSubmittal('${s.id}','approvedDate',this.value)"></td>
       <td data-label="Notes"><input type="text" value="${s.notes||''}" placeholder="Notes..." onchange="updateSubmittal('${s.id}','notes',this.value)"></td>
-      <td data-label=""><button class="task-del" onclick="deleteSubmittal('${s.id}')">✕</button></td>`;
+      <td data-label=""><button class="task-del" data-perm="delete" onclick="deleteSubmittal('${s.id}')">✕</button></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -2830,7 +3027,7 @@ function renderNotes(p) {
         ${expandBtn}
         <span style="flex:1"></span>
         <button class="note-view-btn" onclick="openNotePopup('${n.id}')">&#9998; Edit</button>
-        <button class="note-del" onclick="deleteNote('${n.id}')">✕ Remove</button>
+        <button class="note-del" data-perm="delete" onclick="deleteNote('${n.id}')">✕ Remove</button>
       </div>`;
     log.appendChild(div);
   });
@@ -3179,8 +3376,8 @@ function buildContractorCard(c) {
     ? `<img src="${c.logo}" alt="${c.name}">`
     : `<div class="contractor-logo-placeholder"><div class="logo-icon">&#127970;</div><span>No Logo</span></div>`;
   card.innerHTML = `
-    <div class="contractor-card-top" onclick="openContractorModal('${c.id}')" title="Click to edit">
-      <input type="file" class="logo-upload-input" id="logo-upload-${c.id}" accept="image/*" onchange="uploadCardLogo('${c.id}', this)">
+    <div class="contractor-card-top" onclick="openContractorModal('${c.id}')" title="Click to view">
+      <input type="file" class="logo-upload-input jc-lockable" id="logo-upload-${c.id}" accept="image/*" onchange="uploadCardLogo('${c.id}', this)">
       ${logoHTML}
     </div>
     <div class="contractor-card-body">
@@ -3192,8 +3389,8 @@ function buildContractorCard(c) {
       </div>
     </div>
     <div class="contractor-card-actions">
-      <button class="con-edit-btn" onclick="openContractorModal('${c.id}')">&#9998; Edit</button>
-      <button class="con-del-btn"  onclick="deleteContractor('${c.id}')">&#128465; Delete</button>
+      <button class="con-edit-btn" onclick="openContractorModal('${c.id}')">${canEdit() ? '&#9998; Edit' : '&#128065; View'}</button>
+      <button class="con-del-btn" data-perm="delete" onclick="deleteContractor('${c.id}')">&#128465; Delete</button>
     </div>`;
   return card;
 }
@@ -3416,8 +3613,8 @@ function buildDirectoryCard(type, item) {
       </div>
     </div>
     <div class="contractor-card-actions">
-      <button class="con-edit-btn" onclick="openDirectoryModal('${type}','${item.id}')">&#9998; Edit</button>
-      <button class="con-del-btn"  onclick="deleteDirectoryItem('${type}','${item.id}')">&#128465; Delete</button>
+      <button class="con-edit-btn" onclick="openDirectoryModal('${type}','${item.id}')">${canEdit() ? '&#9998; Edit' : '&#128065; View'}</button>
+      <button class="con-del-btn" data-perm="delete" onclick="deleteDirectoryItem('${type}','${item.id}')">&#128465; Delete</button>
     </div>`;
   return card;
 }
@@ -3675,22 +3872,28 @@ function renderDocLinks(p) {
   if (!grid) return;
   p.docLinks = p.docLinks || p.links || {};
   grid.innerHTML = '';
+  const editable = canEdit();
+  const addable = canAddDocs();
   DOC_LINK_FIELDS.forEach(f => {
     const url = p.docLinks[f.key] || '';
     const row = document.createElement('div');
     row.className = 'doclink-row';
-    row.innerHTML = url
-      ? `<label>${f.label}</label>
-         <button type="button" class="doclink-open-btn" onclick="window.open('${url}','_blank','noopener')">&#8599; Open</button>
-         <label class="doclink-replace" for="doc-file-${f.key}">Replace</label>
-         <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">`
-      : `<label>${f.label}</label>
+    if (url) {
+      row.innerHTML = `<label>${f.label}</label>
+         <button type="button" class="doclink-open-btn" onclick="window.open('${url}','_blank','noopener')">&#8599; Open</button>`
+        + (editable ? `<label class="doclink-replace" for="doc-file-${f.key}">Replace</label>
+         <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">` : '');
+    } else if (addable) {
+      row.innerHTML = `<label>${f.label}</label>
          <div class="doclink-dropzone" id="doclink-zone-${f.key}"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="docDrop(event,'${f.key}')"
            onclick="document.getElementById('doc-file-${f.key}').click()">Drop file or click to upload</div>
          <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">`;
+    } else {
+      row.innerHTML = `<label>${f.label}</label><span class="doclink-empty-note">— not uploaded —</span>`;
+    }
     grid.appendChild(row);
   });
 }
@@ -3744,22 +3947,32 @@ function renderSystemPlans(p) {
   if (!wrap) return;
   p.systemPlans = p.systemPlans || [];
   wrap.innerHTML = '';
+  const editable = canEdit();
+  const addable = canAddDocs();
   p.systemPlans.forEach(sp => {
     const row = document.createElement('div');
     row.className = 'doclink-row';
-    const zoneOrOpen = sp.url
-      ? `<button type="button" class="doclink-open-btn" onclick="window.open('${sp.url}','_blank','noopener')">&#8599; Open</button>
-         <label class="doclink-replace" for="sysplan-file-${sp.id}">Replace</label>`
-      : `<div class="doclink-dropzone" id="sysplan-zone-${sp.id}"
+    const labelHTML = (editable || (addable && !sp.url))
+      ? `<input type="text" class="sysplan-label-input" value="${(sp.label||'').replace(/"/g,'&quot;')}" placeholder="e.g. Fire Alarm Plans" onchange="updateSystemPlanLabel('${sp.id}', this.value)">`
+      : `<span class="sysplan-label-readonly">${sp.label || '(untitled)'}</span>`;
+    let actionHTML;
+    if (sp.url) {
+      actionHTML = `<button type="button" class="doclink-open-btn" onclick="window.open('${sp.url}','_blank','noopener')">&#8599; Open</button>`
+        + (editable ? `<label class="doclink-replace" for="sysplan-file-${sp.id}">Replace</label>` : '');
+    } else if (addable) {
+      actionHTML = `<div class="doclink-dropzone" id="sysplan-zone-${sp.id}"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="sysPlanDrop(event,'${sp.id}')"
            onclick="document.getElementById('sysplan-file-${sp.id}').click()">Drop file or click to upload</div>`;
+    } else {
+      actionHTML = `<span class="doclink-empty-note">— not uploaded —</span>`;
+    }
     row.innerHTML = `
-      <input type="text" class="sysplan-label-input" value="${(sp.label||'').replace(/"/g,'&quot;')}" placeholder="e.g. Fire Alarm Plans" onchange="updateSystemPlanLabel('${sp.id}', this.value)">
-      ${zoneOrOpen}
+      ${labelHTML}
+      ${actionHTML}
       <input type="file" id="sysplan-file-${sp.id}" class="doclink-file-input" onchange="sysPlanFileSelected('${sp.id}',this)">
-      <button type="button" class="sysplan-del" onclick="deleteSystemPlan('${sp.id}')" title="Remove">&#10005;</button>`;
+      <button type="button" class="sysplan-del" data-perm="delete" onclick="deleteSystemPlan('${sp.id}')" title="Remove">&#10005;</button>`;
     wrap.appendChild(row);
   });
 }
@@ -3857,24 +4070,34 @@ function renderDocList(p, listKey) {
   }
 
   wrap.innerHTML = '';
+  const editable = canEdit();
+  const addable = canAddDocs();
   p[cfg.field].forEach(item => {
     const row = document.createElement('div');
     row.className = 'doclink-row';
     const zoneId = `${cfg.zonePrefix}-zone-${item.id}`;
     const fileId = `${cfg.zonePrefix}-file-${item.id}`;
-    const zoneOrOpen = item.url
-      ? `<button type="button" class="doclink-open-btn" onclick="window.open('${item.url}','_blank','noopener')">&#8599; Open</button>
-         <label class="doclink-replace" for="${fileId}">Replace</label>`
-      : `<div class="doclink-dropzone" id="${zoneId}"
+    const labelHTML = (editable || (addable && !item.url))
+      ? `<input type="text" class="sysplan-label-input" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="Label..." onchange="updateDocListLabel('${listKey}','${item.id}', this.value)">`
+      : `<span class="sysplan-label-readonly">${item.label || '(untitled)'}</span>`;
+    let actionHTML;
+    if (item.url) {
+      actionHTML = `<button type="button" class="doclink-open-btn" onclick="window.open('${item.url}','_blank','noopener')">&#8599; Open</button>`
+        + (editable ? `<label class="doclink-replace" for="${fileId}">Replace</label>` : '');
+    } else if (addable) {
+      actionHTML = `<div class="doclink-dropzone" id="${zoneId}"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="docListDrop(event,'${listKey}','${item.id}')"
            onclick="document.getElementById('${fileId}').click()">Drop file or click to upload</div>`;
+    } else {
+      actionHTML = `<span class="doclink-empty-note">— not uploaded —</span>`;
+    }
     row.innerHTML = `
-      <input type="text" class="sysplan-label-input" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="Label..." onchange="updateDocListLabel('${listKey}','${item.id}', this.value)">
-      ${zoneOrOpen}
+      ${labelHTML}
+      ${actionHTML}
       <input type="file" id="${fileId}" class="doclink-file-input" onchange="docListFileSelected('${listKey}','${item.id}',this)">
-      <button type="button" class="sysplan-del" onclick="deleteDocListItem('${listKey}','${item.id}')" title="Remove">&#10005;</button>`;
+      <button type="button" class="sysplan-del" data-perm="delete" onclick="deleteDocListItem('${listKey}','${item.id}')" title="Remove">&#10005;</button>`;
     wrap.appendChild(row);
   });
 }
