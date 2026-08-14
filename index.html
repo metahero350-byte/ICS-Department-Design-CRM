@@ -35,6 +35,18 @@
     --yellow: #facc15;
   }
 
+  /* ─── LIGHT MODE — same brand accent, swapped surfaces/text ─── */
+  body.light-mode {
+    --black: #f0f0f0;
+    --surface: #ffffff;
+    --surface2: #f7f7f7;
+    --surface3: #ececec;
+    --border: #dcdcdc;
+    --text: #1a1a1a;
+    --text-dim: #555;
+    --text-muted: #888;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -832,6 +844,35 @@
   }
   #logout-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
 
+  #theme-toggle-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 14px; padding: 4px 9px;
+    cursor: pointer; border-radius: 2px; line-height: 1; transition: all 0.15s;
+  }
+  #theme-toggle-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+
+  #presence-wrap { position: relative; }
+  #presence-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; font-weight: 700;
+    padding: 4px 10px; cursor: pointer; border-radius: 2px;
+    display: flex; align-items: center; gap: 5px; transition: all 0.15s;
+  }
+  #presence-btn:hover { border-color: var(--ics-red); color: var(--ics-red); }
+  #presence-count { color: var(--green); font-weight: 700; }
+  #presence-panel {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 220px; max-width: 300px; max-height: 320px; overflow-y: auto;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 6px; z-index: 400;
+  }
+  #presence-panel.open { display: block; }
+  .presence-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; font-size: 12px; color: var(--text); border-radius: 2px; }
+  .presence-row:hover { background: var(--surface3); }
+  .presence-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .presence-empty { padding: 10px 8px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+
   /* ─── MOBILE RESPONSIVE (max-width: 768px) ─── */
   @media (max-width: 768px) {
 
@@ -979,6 +1020,84 @@
 
     /* ── Combobox dropdowns: ensure they don't overflow viewport ── */
     .combobox-dropdown, .sys-combo-dropdown { max-height: 160px; }
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     TABLET (iPad / Android tablets) — 769px to 1194px
+     Covers iPad mini/standard/Air in both portrait (810–834px)
+     and landscape (1024–1194px), plus most Android tablets in
+     the same range. Purely additive — does not modify the
+     phone (≤768px) or desktop (>1194px) rules at all, so
+     neither of those is affected by anything below.
+
+     Goals: never force horizontal scroll, keep every touch
+     target comfortably tap-sized, and never drop below the
+     135px minimum date-field width already proven necessary
+     for full mm/dd/yyyy + calendar-icon legibility.
+     ═══════════════════════════════════════════════════════ */
+  @media (min-width: 769px) and (max-width: 1194px) {
+
+    /* ── Bigger, easier tap targets throughout ── */
+    .nav-tab, #add-project-btn, .btn-save, .btn-archive, .btn-report,
+    .add-sub-btn, .doclink-open-btn, .con-edit-btn, .con-del-btn,
+    #theme-toggle-btn, #presence-btn, #logout-btn, .add-record-btn {
+      min-height: 40px;
+    }
+    input[type="text"], input[type="date"], input[type="email"],
+    input[type="password"], select, textarea {
+      min-height: 38px;
+    }
+    .task-item input[type="checkbox"] { width: 20px; height: 20px; }
+
+    /* ── Job Card modal: use more of the tablet viewport ── */
+    #modal-overlay { padding: 10px; }
+
+    /* ── Submittals: card rows, same reliable no-scroll technique
+       already proven on phone, just sized for a tablet-scale touch
+       target instead of a phone-scale one. This is the only way to
+       guarantee zero horizontal scroll at ANY tablet width while
+       keeping full date-field legibility — a plain shrunk table
+       can't fit six-plus columns in ~700–900px without either
+       clipping dates again or requiring a scroll. ── */
+    .section-block { overflow-x: visible; }
+    .submittal-table-wrap { overflow-x: visible; }
+    .submittal-table { display: block; width: 100%; table-layout: auto; }
+    .submittal-table thead, .submittal-table tbody { display: block; }
+    .submittal-table thead tr { display: none; }
+    .submittal-table tr { display: block; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 4px; padding: 10px; }
+    .submittal-table td {
+      display: flex; justify-content: space-between; align-items: center;
+      white-space: normal; border-bottom: 1px solid var(--surface3);
+      padding: 10px 6px; min-height: 40px;
+    }
+    .submittal-table td:last-child { border-bottom: none; justify-content: flex-end; }
+    .submittal-table td::before {
+      content: attr(data-label); font-size: 10px; font-weight: 700;
+      letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase;
+      flex-shrink: 0; margin-right: 10px;
+    }
+    .sys-combo-wrap, .system-select-wrap { min-width: 0; width: 100%; }
+
+    /* ── Grids: comfortable multi-column instead of cramped desktop
+       sizing or wasteful single-column phone sizing ── */
+    .project-grid, .contractor-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+
+    /* ── Dropdowns sized for a fingertip, not a mouse pointer ── */
+    .combobox-dropdown, .sys-combo-dropdown { max-height: 220px; }
+    .combobox-option { padding: 10px 12px; }
+  }
+
+  /* ── Tablet PORTRAIT: not wide enough for sidebar-beside-main,
+     stack it the same way the phone layout already does. ── */
+  @media (min-width: 769px) and (max-width: 1194px) and (orientation: portrait) {
+    .jc-body { grid-template-columns: 1fr; }
+    .jc-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  /* ── Tablet LANDSCAPE: enough width to keep the sidebar beside
+     main content, just narrower than the full desktop 270px. ── */
+  @media (min-width: 769px) and (max-width: 1194px) and (orientation: landscape) {
+    .jc-body { grid-template-columns: 240px 1fr; }
   }
 
   /* ─── MOBILE: SMALL PHONES (max-width: 400px) ─── */
@@ -1140,6 +1259,13 @@
 </style>
 </head>
 <body>
+<script>
+  // Applied before anything paints, so returning visitors never see a
+  // flash of the wrong theme.
+  if (localStorage.getItem('ics_theme') === 'light') {
+    document.body.classList.add('light-mode');
+  }
+</script>
 
 <!-- LOGIN GATE -->
 <div id="login-gate">
@@ -1188,6 +1314,11 @@
   <div id="sync-indicator">
     <div id="sync-dot"></div>
     <span id="sync-label">Connecting...</span>
+  </div>
+  <button id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode">&#127769;</button>
+  <div id="presence-wrap">
+    <button id="presence-btn" onclick="togglePresencePanel()" title="Who's active right now">&#128101; <span id="presence-count">0</span></button>
+    <div id="presence-panel"></div>
   </div>
   <div id="user-menu">
     <span class="user-email" id="user-email-label"></span>
@@ -1769,6 +1900,100 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ════════════════════════════════════════════════════════
+// LIGHT / DARK MODE TOGGLE
+// ════════════════════════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-mode');
+  localStorage.setItem('ics_theme', isLight ? 'light' : 'dark');
+  updateThemeToggleIcon();
+}
+
+function updateThemeToggleIcon() {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+  const isLight = document.body.classList.contains('light-mode');
+  btn.innerHTML = isLight ? '&#9728;&#65039;' : '&#127769;';
+  btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
+}
+
+document.addEventListener('DOMContentLoaded', updateThemeToggleIcon);
+
+// ════════════════════════════════════════════════════════
+// PRESENCE — "who's active right now"
+// Heartbeat pattern (not Realtime Database's onDisconnect, which
+// would need a second Firebase product enabled): each signed-in
+// tab writes its own presence doc every 45s. Anyone whose last
+// heartbeat is under 2 minutes old counts as "active." A closed
+// tab just stops refreshing and quietly ages out — simpler than
+// trying to catch every disconnect scenario, and reliable enough
+// for "is anyone else in the CRM right now."
+// ════════════════════════════════════════════════════════
+const PRESENCE_COLLECTION = 'ics_presence';
+const PRESENCE_STALE_MS = 2 * 60 * 1000;
+let presenceHeartbeatTimer = null;
+let presenceUnsub = null;
+
+function startPresence() {
+  if (!auth.currentUser) return;
+  writePresence();
+  if (presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+  presenceHeartbeatTimer = setInterval(writePresence, 45000);
+  if (!presenceUnsub) {
+    presenceUnsub = db.collection(PRESENCE_COLLECTION).onSnapshot(
+      snap => renderPresence(snap),
+      e => console.warn('ICS CRM: presence listener failed (check Firestore rules)', e)
+    );
+  }
+}
+
+function stopPresence() {
+  if (presenceHeartbeatTimer) { clearInterval(presenceHeartbeatTimer); presenceHeartbeatTimer = null; }
+  if (presenceUnsub) { presenceUnsub(); presenceUnsub = null; }
+}
+
+async function writePresence() {
+  const u = auth.currentUser; if (!u) return;
+  try {
+    await db.collection(PRESENCE_COLLECTION).doc(u.uid).set({
+      email: u.email,
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { console.warn('ICS CRM: presence write failed', e); }
+}
+
+function renderPresence(snap) {
+  const now = Date.now();
+  const active = [];
+  snap.forEach(doc => {
+    const d = doc.data();
+    const ts = (d.lastSeen && d.lastSeen.toMillis) ? d.lastSeen.toMillis() : 0;
+    if (ts && now - ts < PRESENCE_STALE_MS) active.push(d.email);
+  });
+  active.sort();
+  const countEl = document.getElementById('presence-count');
+  const panel = document.getElementById('presence-panel');
+  if (countEl) countEl.textContent = active.length;
+  if (panel) {
+    panel.innerHTML = active.length
+      ? active.map(e => `<div class="presence-row"><span class="presence-dot"></span>${e}</div>`).join('')
+      : '<div class="presence-empty">No one else active right now</div>';
+  }
+}
+
+function togglePresencePanel() {
+  const panel = document.getElementById('presence-panel');
+  if (panel) panel.classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('presence-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const panel = document.getElementById('presence-panel');
+    if (panel) panel.classList.remove('open');
+  }
+});
+
 const FS_PROJECTS    = 'ics_projects';
 const FS_CONTRACTORS = 'ics_contractors';
 
@@ -1836,6 +2061,8 @@ async function handleLogin() {
 
 function handleLogout() {
   if (!confirm('Sign out of ICS Service CRM?')) return;
+  const u = auth.currentUser;
+  if (u) db.collection(PRESENCE_COLLECTION).doc(u.uid).delete().catch(() => {});
   auth.signOut();
 }
 
@@ -1865,11 +2092,13 @@ auth.onAuthStateChanged(function(user) {
       appInitialized = true;
       initializeCRMData();
     }
+    startPresence();
   } else {
     // Not authenticated — show gate, hide app
     gate.classList.remove('hidden');
     shell.classList.remove('unlocked');
     appInitialized = false;
+    stopPresence();
   }
 });
 
