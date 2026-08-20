@@ -352,6 +352,8 @@
   }
   .note-entry:first-child { border-left-color: var(--ics-red); }
   .note-ts { font-size: 9px; color: var(--text-dim); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+  .team-notes-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+  .note-author { font-size: 9px; color: var(--ics-red); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-left: 8px; }
   .note-text { font-size: 12px; line-height: 1.5; }
   .note-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
   .note-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; }
@@ -1765,6 +1767,18 @@
           </div>
           </div>
         </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-teamnotes" onclick="toggleSection('sec-teamnotes')">Team Notes<span class="chevron">&#9662;</span></div>
+          <div id="sec-teamnotes">
+          <p class="team-notes-hint">Shared scratchpad for Contributors, Viewers, and the whole team — kept separate from the official project record above. Anyone can post here, regardless of role.</p>
+          <div class="notes-log" id="team-notes-log"></div>
+          <div class="add-note-row">
+            <textarea id="new-team-note-input" placeholder="Add a note for the team..."></textarea>
+            <button onclick="addTeamNote()">POST NOTE</button>
+          </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2689,7 +2703,7 @@ function createProject() {
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     systemPlans: [],
-    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [],
+    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [], teamNotes: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2712,7 +2726,7 @@ function createProject() {
 // COLLAPSIBLE JOB CARD SECTIONS
 // ════════════════════════════════════════════════════════
 const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
-const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-biddocs','sec-addendums','sec-specs','sec-plans','sec-apd','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-biddocs','sec-addendums','sec-specs','sec-plans','sec-apd','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes','sec-teamnotes'];
 
 function setSectionState(id, collapsed) {
   const content = document.getElementById(id);
@@ -2754,7 +2768,7 @@ function openProject(id) {
   document.getElementById('f-designer').value        = p.designer       || '';
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
-  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p);
+  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p); renderTeamNotes(p);
   renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders'); renderDocList(p, 'approvedProductData'); renderDocList(p, 'closeouts'); renderDocList(p, 'bidDocs'); renderDocList(p, 'specs'); renderDocList(p, 'addendums');
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
@@ -3086,6 +3100,63 @@ function deleteNote(nid) {
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
   p.notes = p.notes.filter(x => x.id !== nid);
   renderNotes(p);
+}
+
+// ════════════════════════════════════════════════════════
+// TEAM NOTES — shared scratchpad, deliberately separate from
+// General Notes. Any signed-in role (including Viewer) can post
+// here — this is the one intentional write exception to an
+// otherwise fully read-only Viewer role. Kept simpler than
+// General Notes on purpose: append-only (no editing someone
+// else's entry after the fact), delete stays Admin-only like
+// everywhere else.
+// ════════════════════════════════════════════════════════
+function renderTeamNotes(p) {
+  const log = document.getElementById('team-notes-log');
+  if (!log) return;
+  const notes = [...(p.teamNotes||[])].reverse();
+  log.innerHTML = '';
+  if (notes.length === 0) {
+    log.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0;">No entries yet.</div>';
+    return;
+  }
+  notes.forEach((n, i) => {
+    const safeText = (n.text||'')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\n/g,'<br>');
+    const div = document.createElement('div');
+    div.className = 'note-entry';
+    div.style.borderLeftColor = i === 0 ? 'var(--ics-red)' : 'var(--border)';
+    div.innerHTML = `
+      <div class="note-ts">${n.ts}${n.author ? `<span class="note-author">${n.author}</span>` : ''}</div>
+      <div class="note-text-preview">${safeText}</div>
+      <div class="note-actions" style="display:flex;gap:6px;align-items:center;margin-top:5px;">
+        <span style="flex:1"></span>
+        <button class="note-del" data-perm="delete" onclick="deleteTeamNote('${n.id}')">✕ Remove</button>
+      </div>`;
+    log.appendChild(div);
+  });
+}
+
+function addTeamNote() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const input = document.getElementById('new-team-note-input');
+  const val = input.value.trim(); if (!val) return;
+  p.teamNotes = p.teamNotes || [];
+  p.teamNotes.push({
+    id: uid(), ts: now(), text: val,
+    author: (auth.currentUser && auth.currentUser.email) || 'Unknown'
+  });
+  input.value = '';
+  renderTeamNotes(p);
+  persistData(p);
+}
+
+function deleteTeamNote(nid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.teamNotes = (p.teamNotes||[]).filter(x => x.id !== nid);
+  renderTeamNotes(p);
+  persistData(p);
 }
 
 function openNotePopup(nid) {
