@@ -288,7 +288,11 @@
   @keyframes doc-alert-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
   .doc-alert-header { background: var(--green); color: #062b12; padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; border-radius: 3px 3px 0 0; }
   .doc-alert-header button { background: none; border: none; color: #062b12; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
-  .doc-alert-body { padding: 10px 12px; font-size: 12px; color: var(--text); line-height: 1.5; }
+  .doc-alert-body { padding: 10px 12px; font-size: 12px; color: var(--text); line-height: 1.5; max-height: 260px; overflow-y: auto; }
+  .doc-alert-item { padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .doc-alert-item:last-child { border-bottom: none; }
+  .doc-alert-item strong { color: var(--green); }
+  .doc-alert-ts { display: block; font-size: 9px; color: var(--text-muted); margin-top: 2px; }
 
   /* Main body */
   .jc-main { padding: 16px; }
@@ -1828,7 +1832,7 @@
 <div id="doc-alert-banner" class="doc-alert-banner" style="display:none;">
   <div class="doc-alert-header">
     <span>&#10003; NEW DOCUMENT ADDED</span>
-    <button onclick="closeDocAlertBanner()" title="Dismiss">&#10005;</button>
+    <button onclick="dismissDocAlert()" title="Dismiss">&#10005;</button>
   </div>
   <div class="doc-alert-body" id="doc-alert-body"></div>
 </div>
@@ -2736,7 +2740,7 @@ function createProject() {
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     systemPlans: [],
-    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [], teamNotes: [],
+    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [], teamNotes: [], pendingDocAlerts: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2906,57 +2910,75 @@ const DOC_ALERT_SECTIONS = {
   changeOrders: 'Change Orders'
 };
 let docAlertUnsub = null;
-let docAlertBaseline = {};
+let docAlertSeenIds = new Set();
 
 function countFilledDocs(arr) { return (arr||[]).filter(x => x && x.url).length; }
 
 function startDocAlertWatch(p) {
   stopDocAlertWatch();
-  docAlertBaseline = {};
-  Object.keys(DOC_ALERT_SECTIONS).forEach(key => {
-    const cfg = DOC_LIST_CONFIGS[key];
-    docAlertBaseline[key] = countFilledDocs(p[cfg.field]);
-  });
+  docAlertSeenIds = new Set((p.pendingDocAlerts||[]).map(a => a.id));
+
+  // Catch-up: if this project already has unacknowledged alerts sitting
+  // on it from before (added while nobody had it open, or from a prior
+  // session), show them immediately on open — no live chime for those,
+  // since nothing is happening live, just a visible reminder.
+  if ((p.pendingDocAlerts||[]).length > 0) showDocAlert(p.pendingDocAlerts);
+
   docAlertUnsub = db.collection(FS_PROJECTS).doc(p.id).onSnapshot(doc => {
     if (!doc.exists || activeProjectId !== p.id) return;
     const fresh = doc.data();
-    const grown = [];
-    Object.keys(DOC_ALERT_SECTIONS).forEach(key => {
-      const cfg = DOC_LIST_CONFIGS[key];
-      const newCount = countFilledDocs(fresh[cfg.field]);
-      if (newCount > (docAlertBaseline[key] || 0)) grown.push(DOC_ALERT_SECTIONS[key]);
-      docAlertBaseline[key] = newCount;
-    });
-    // Pull the fresh doc-list data into the live project object so
-    // whoever's looking at it sees the new item without reopening.
+
+    // Pull fresh doc-list data into the live project object so whoever's
+    // looking at it sees the new item without reopening.
     const liveP = projects.find(x => x.id === p.id);
     if (liveP) {
       Object.keys(DOC_LIST_CONFIGS).forEach(k => {
         const f = DOC_LIST_CONFIGS[k].field;
         if (fresh[f]) { liveP[f] = fresh[f]; renderDocList(liveP, k); }
       });
+      liveP.pendingDocAlerts = fresh.pendingDocAlerts || [];
     }
-    if (grown.length > 0) { showDocAlert(grown); playChime(); }
+
+    const freshAlerts = fresh.pendingDocAlerts || [];
+    const newOnes = freshAlerts.filter(a => !docAlertSeenIds.has(a.id));
+    if (newOnes.length > 0) {
+      newOnes.forEach(a => docAlertSeenIds.add(a.id));
+      showDocAlert(freshAlerts); // show the full pending list, not just what's new this tick
+      playChime();
+    }
   }, e => console.warn('ICS CRM: document alert listener failed', e));
 }
 
 function stopDocAlertWatch() {
   if (docAlertUnsub) { docAlertUnsub(); docAlertUnsub = null; }
-  closeDocAlertBanner();
+  hideDocAlertBanner(); // closing the job card just hides it from view —
+                        // it does NOT count as acknowledging it, so it
+                        // will show again next time this project opens.
 }
 
-function showDocAlert(sections) {
+function showDocAlert(alerts) {
   const banner = document.getElementById('doc-alert-banner');
   const body = document.getElementById('doc-alert-body');
-  if (!banner || !body) return;
-  body.textContent = sections.join(', ') + (sections.length > 1 ? ' were just updated.' : ' was just updated.');
+  if (!banner || !body || !alerts || alerts.length === 0) return;
+  body.innerHTML = alerts.map(a =>
+    `<div class="doc-alert-item"><strong>${a.section}:</strong> ${a.label || '(untitled)'}<span class="doc-alert-ts">${a.ts||''}</span></div>`
+  ).join('');
   positionDocAlertBanner();
   banner.style.display = 'block';
 }
 
-function closeDocAlertBanner() {
+function hideDocAlertBanner() {
   const banner = document.getElementById('doc-alert-banner');
   if (banner) banner.style.display = 'none';
+}
+
+function dismissDocAlert() {
+  hideDocAlertBanner();
+  const p = projects.find(x => x.id === activeProjectId);
+  if (p && (p.pendingDocAlerts||[]).length > 0) {
+    p.pendingDocAlerts = [];
+    persistData(p);
+  }
 }
 
 function positionDocAlertBanner() {
@@ -4400,6 +4422,15 @@ async function uploadDocListFile(listKey, id, file) {
     const url = await ref.getDownloadURL();
     const item = (p[cfg.field]||[]).find(x => x.id === id);
     if (item) item.url = url;
+    if (DOC_ALERT_SECTIONS[listKey]) {
+      p.pendingDocAlerts = p.pendingDocAlerts || [];
+      p.pendingDocAlerts.push({
+        id: uid(),
+        section: DOC_ALERT_SECTIONS[listKey],
+        label: (item && item.label) || file.name || 'Untitled',
+        ts: now()
+      });
+    }
     persistData(p);
     renderDocList(p, listKey);
   } catch(err) {
