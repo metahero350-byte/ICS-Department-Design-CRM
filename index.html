@@ -225,7 +225,7 @@
   .sidebar-section-title {
     font-size: 9px; font-weight: 700; letter-spacing: 2px;
     color: var(--text-muted); text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--border);
     padding-bottom: 6px; margin-bottom: 10px; margin-top: 16px;
   }
   .collapsible-title { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; }
@@ -245,6 +245,17 @@
     pointer-events: none;
     opacity: 0.5;
     filter: grayscale(0.3);
+  }
+  /* Collapse/expand is a pure display toggle, not a data edit — it
+     should always work regardless of role, even for a section whose
+     CONTENTS are locked. This restores clickability specifically for
+     section headers without reopening any of the actual inputs/
+     buttons underneath, which remain locked as normal. */
+  body.role-viewer .jc-lockable .collapsible-title,
+  body.role-contributor .jc-lockable .collapsible-title {
+    pointer-events: auto;
+    opacity: 1;
+    filter: none;
   }
   body.role-editor [data-perm="delete"],
   body.role-contributor [data-perm="delete"],
@@ -271,13 +282,21 @@
   .glance-item.g-high { color: var(--text); font-weight: 600; }
   .glance-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 4px 0; }
 
+  /* ─── LIVE DOCUMENT ALERT — green, deliberately distinct from
+     the red At-a-Glance modal it sits beneath ─── */
+  .doc-alert-banner { position: fixed; width: 320px; max-width: calc(100vw - 40px); background: var(--surface2); border: 1px solid var(--green); border-radius: 4px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); z-index: 2999; animation: doc-alert-in 0.25s ease-out; }
+  @keyframes doc-alert-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .doc-alert-header { background: var(--green); color: #062b12; padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; border-radius: 3px 3px 0 0; }
+  .doc-alert-header button { background: none; border: none; color: #062b12; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+  .doc-alert-body { padding: 10px 12px; font-size: 12px; color: var(--text); line-height: 1.5; }
+
   /* Main body */
   .jc-main { padding: 16px; }
   .section-block { margin-bottom: 20px; }
   .section-block-title {
     font-size: 9px; font-weight: 700; letter-spacing: 2px;
     color: var(--text-muted); text-transform: uppercase;
-    border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px;
+    border-bottom: 2px solid var(--border); padding-bottom: 6px; margin-bottom: 10px;
   }
 
   /* What's Next */
@@ -1774,6 +1793,11 @@
           <p class="team-notes-hint">Shared scratchpad for Contributors, Viewers, and the whole team — kept separate from the official project record above. Anyone can post here, regardless of role.</p>
           <div class="notes-log" id="team-notes-log"></div>
           <div class="add-note-row">
+            <div class="add-note-date-row">
+              <label>Entry Date</label>
+              <input type="date" id="new-team-note-date">
+              <span class="date-hint">Leave blank to use today's date &amp; time</span>
+            </div>
             <textarea id="new-team-note-input" placeholder="Add a note for the team..."></textarea>
             <button onclick="addTeamNote()">POST NOTE</button>
           </div>
@@ -1798,6 +1822,15 @@
     <button onclick="closeGlanceModal()" title="Close">&#10005;</button>
   </div>
   <div class="glance-body" id="glance-body"></div>
+</div>
+
+<!-- LIVE DOCUMENT ALERT — new Addendums/Specs/Plans/Product Data/RFI's/Change Orders -->
+<div id="doc-alert-banner" class="doc-alert-banner" style="display:none;">
+  <div class="doc-alert-header">
+    <span>&#10003; NEW DOCUMENT ADDED</span>
+    <button onclick="closeDocAlertBanner()" title="Dismiss">&#10005;</button>
+  </div>
+  <div class="doc-alert-body" id="doc-alert-body"></div>
 </div>
 
 <!-- NEW PROJECT MODAL -->
@@ -2775,12 +2808,14 @@ function openProject(id) {
   resetJobCardSections();
   document.getElementById('modal-overlay').classList.add('open');
   openGlanceModal(p);
+  startDocAlertWatch(p);
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   activeProjectId = null;
   closeGlanceModal();
+  stopDocAlertWatch();
 }
 
 // ════════════════════════════════════════════════════════
@@ -2851,6 +2886,111 @@ function initGlanceDrag() {
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   });
+}
+
+// ════════════════════════════════════════════════════════
+// LIVE DOCUMENT ALERT — Addendums, Specs, Approved Shop
+// Drawings/Plans, Approved Product Data, RFI's, Change Orders.
+// While a job card is open, watches that project live in
+// Firestore. Fires only when one of these six lists gains an
+// actual uploaded file (not just an empty "+Add" slot being
+// created) — that's the point where there's really something
+// new to know about.
+// ════════════════════════════════════════════════════════
+const DOC_ALERT_SECTIONS = {
+  addendums: 'Addendums',
+  specs: 'Specs',
+  plans: 'Approved Shop Drawings/ PLANS',
+  approvedProductData: 'Approved Product Data',
+  rfis: "RFI's",
+  changeOrders: 'Change Orders'
+};
+let docAlertUnsub = null;
+let docAlertBaseline = {};
+
+function countFilledDocs(arr) { return (arr||[]).filter(x => x && x.url).length; }
+
+function startDocAlertWatch(p) {
+  stopDocAlertWatch();
+  docAlertBaseline = {};
+  Object.keys(DOC_ALERT_SECTIONS).forEach(key => {
+    const cfg = DOC_LIST_CONFIGS[key];
+    docAlertBaseline[key] = countFilledDocs(p[cfg.field]);
+  });
+  docAlertUnsub = db.collection(FS_PROJECTS).doc(p.id).onSnapshot(doc => {
+    if (!doc.exists || activeProjectId !== p.id) return;
+    const fresh = doc.data();
+    const grown = [];
+    Object.keys(DOC_ALERT_SECTIONS).forEach(key => {
+      const cfg = DOC_LIST_CONFIGS[key];
+      const newCount = countFilledDocs(fresh[cfg.field]);
+      if (newCount > (docAlertBaseline[key] || 0)) grown.push(DOC_ALERT_SECTIONS[key]);
+      docAlertBaseline[key] = newCount;
+    });
+    // Pull the fresh doc-list data into the live project object so
+    // whoever's looking at it sees the new item without reopening.
+    const liveP = projects.find(x => x.id === p.id);
+    if (liveP) {
+      Object.keys(DOC_LIST_CONFIGS).forEach(k => {
+        const f = DOC_LIST_CONFIGS[k].field;
+        if (fresh[f]) { liveP[f] = fresh[f]; renderDocList(liveP, k); }
+      });
+    }
+    if (grown.length > 0) { showDocAlert(grown); playChime(); }
+  }, e => console.warn('ICS CRM: document alert listener failed', e));
+}
+
+function stopDocAlertWatch() {
+  if (docAlertUnsub) { docAlertUnsub(); docAlertUnsub = null; }
+  closeDocAlertBanner();
+}
+
+function showDocAlert(sections) {
+  const banner = document.getElementById('doc-alert-banner');
+  const body = document.getElementById('doc-alert-body');
+  if (!banner || !body) return;
+  body.textContent = sections.join(', ') + (sections.length > 1 ? ' were just updated.' : ' was just updated.');
+  positionDocAlertBanner();
+  banner.style.display = 'block';
+}
+
+function closeDocAlertBanner() {
+  const banner = document.getElementById('doc-alert-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+function positionDocAlertBanner() {
+  const banner = document.getElementById('doc-alert-banner');
+  const glance = document.getElementById('glance-modal');
+  if (!banner) return;
+  if (glance && glance.style.display === 'block') {
+    const rect = glance.getBoundingClientRect();
+    banner.style.top = (rect.bottom + 10) + 'px';
+    banner.style.left = rect.left + 'px';
+    banner.style.right = '';
+    banner.style.width = rect.width + 'px';
+  } else {
+    banner.style.top = '90px';
+    banner.style.right = '40px';
+    banner.style.left = '';
+    banner.style.width = '320px';
+  }
+}
+
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.setValueAtTime(1108, ctx.currentTime + 0.12);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    o.start();
+    o.stop(ctx.currentTime + 0.35);
+  } catch(e) { console.warn('ICS CRM: chime playback failed (browser audio policy)', e); }
 }
 
 function renderTasks(p) {
@@ -3142,12 +3282,21 @@ function addTeamNote() {
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
   const input = document.getElementById('new-team-note-input');
   const val = input.value.trim(); if (!val) return;
+  const dateField = document.getElementById('new-team-note-date');
+  let ts;
+  if (dateField && dateField.value) {
+    const [y,m,d] = dateField.value.split('-');
+    ts = m + '/' + d + '/' + y + ' [Backdated]';
+  } else {
+    ts = now();
+  }
   p.teamNotes = p.teamNotes || [];
   p.teamNotes.push({
-    id: uid(), ts: now(), text: val,
+    id: uid(), ts, text: val,
     author: (auth.currentUser && auth.currentUser.email) || 'Unknown'
   });
   input.value = '';
+  if (dateField) dateField.value = '';
   renderTeamNotes(p);
   persistData(p);
 }
