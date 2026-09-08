@@ -659,7 +659,7 @@
      horizontally if the panel is narrower than the table's total
      width, so no column is ever silently compressed again. */
   .submittal-table-wrap { overflow-x: auto; overflow-y: visible; }
-  .submittal-table { width: 1044px; table-layout: fixed; }
+  .submittal-table { width: 1070px; table-layout: fixed; }
   .submittal-table th:nth-child(1),
   .submittal-table td:nth-child(1) { width: 140px; }
   .submittal-table th:nth-child(2),
@@ -673,7 +673,7 @@
   .submittal-table th:nth-child(6),
   .submittal-table td:nth-child(6) { width: 260px; }
   .submittal-table th:nth-child(7),
-  .submittal-table td:nth-child(7) { width: 34px; }
+  .submittal-table td:nth-child(7) { width: 60px; }
   .submittal-table td:nth-child(1) select { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
   .submittal-table td input, .submittal-table td select { text-overflow: ellipsis; }
   .submittal-table td input[type="date"] { font-size: 11px; padding: 2px 2px; }
@@ -742,6 +742,19 @@
   }
   .mu-role-select:focus { border-color: var(--ics-red); }
   .mu-empty { color: var(--text-muted); font-size: 12px; font-style: italic; padding: 10px 0; }
+
+  #followup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 370; align-items: center; justify-content: center; padding: 20px; }
+  #followup-overlay.open { display: flex; }
+  #followup-modal { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--green); width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; border-radius: 4px; }
+  #followup-modal textarea { width: 100%; background: var(--surface3); border: 1px solid var(--border); color: var(--text); padding: 8px; font-family: inherit; font-size: 12px; border-radius: 2px; resize: vertical; }
+  .fu-quickpicks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .fu-chip { background: var(--surface3); border: 1px solid var(--border); color: var(--text-dim); font-size: 10px; padding: 4px 8px; border-radius: 2px; cursor: pointer; transition: all 0.15s; }
+  .fu-chip:hover { border-color: var(--green); color: var(--green); }
+  .fu-chip-empty { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+  .submittal-actions-cell { text-align: center; white-space: nowrap; }
+  .followup-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; }
+  .followup-btn:hover { color: var(--green); }
 
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
@@ -1979,6 +1992,29 @@
   </div>
 </div>
 
+<!-- FOLLOW-UP EMAIL POPUP -->
+<div id="followup-overlay">
+  <div id="followup-modal">
+    <div class="cm-header">
+      <h3>COMPOSE FOLLOW-UP</h3>
+      <button onclick="closeFollowUpPopup()">✕</button>
+    </div>
+    <div class="cm-body">
+      <div class="field-group">
+        <label>To</label>
+        <input type="text" id="fu-to" placeholder="email@company.com">
+        <div class="fu-quickpicks" id="fu-quickpicks"></div>
+      </div>
+      <div class="field-group"><label>Subject</label><input type="text" id="fu-subject"></div>
+      <div class="field-group"><label>Message</label><textarea id="fu-body" rows="9"></textarea></div>
+    </div>
+    <div class="cm-footer">
+      <button class="btn-archive" onclick="closeFollowUpPopup()">Cancel</button>
+      <button class="btn-save" onclick="sendFollowUpEmail()">&#9993; Open in Outlook</button>
+    </div>
+  </div>
+</div>
+
 <!-- NOTE POPUP MODAL -->
 <div id="note-popup-overlay">
   <div id="note-popup">
@@ -3170,7 +3206,10 @@ function renderSubmittals(p) {
       </td>
       <td data-label="Approved/Returned"><input type="date" value="${s.approvedDate||''}" onchange="updateSubmittal('${s.id}','approvedDate',this.value)"></td>
       <td data-label="Notes"><input type="text" value="${s.notes||''}" placeholder="Notes..." onchange="updateSubmittal('${s.id}','notes',this.value)"></td>
-      <td data-label=""><button class="task-del" data-perm="delete" onclick="deleteSubmittal('${s.id}')">✕</button></td>`;
+      <td data-label="" class="submittal-actions-cell">
+        <button class="followup-btn" title="Compose follow-up email" onclick="openFollowUpPopup('${s.id}')">&#9993;</button>
+        <button class="task-del" data-perm="delete" onclick="deleteSubmittal('${s.id}')">✕</button>
+      </td>`;
     tbody.appendChild(tr);
   });
 }
@@ -3192,6 +3231,65 @@ function deleteSubmittal(sid) {
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
   p.submittals = p.submittals.filter(x => x.id !== sid);
   renderSubmittals(p); renderTasks(p);
+}
+
+// ════════════════════════════════════════════════════════
+// FOLLOW-UP EMAIL — opens a mailto: draft in the user's default
+// mail client (Outlook, if that's what's set as default). This
+// deliberately does NOT send automatically — it pre-fills
+// everything and lets the person review before hitting Send in
+// their own mail client. Recipient is manual/quick-pick, not
+// auto-filled, per how this was scoped.
+// ════════════════════════════════════════════════════════
+function openFollowUpPopup(sid) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const s = (p.submittals||[]).find(x => x.id === sid); if (!s) return;
+
+  const od = isOverdue(s.submittalDate, s.status);
+  let daysOverdue = 0;
+  if (od && s.submittalDate) {
+    daysOverdue = Math.floor((new Date(today()) - new Date(s.submittalDate)) / 86400000);
+  }
+
+  const dataType = s.type || 'submittal';
+  const systemType = s.system || 'the system';
+  const projectName = p.name || 'the project';
+
+  const subject = `Follow-up: ${dataType} — ${systemType} (${projectName})`;
+  let body = `Hi,\n\nFollowing up on the ${dataType} for ${systemType} on ${projectName}`;
+  body += s.submittalDate ? `, submitted ${fmtDate(s.submittalDate)}.` : '.';
+  if (od && daysOverdue > 0) {
+    body += ` It's been ${daysOverdue} day${daysOverdue===1?'':'s'} without a response.`;
+  }
+  body += `\n\nCould you please provide a status update at your earliest convenience?\n\nThank you,\n`;
+
+  document.getElementById('fu-to').value = '';
+  document.getElementById('fu-subject').value = subject;
+  document.getElementById('fu-body').value = body;
+
+  const picks = [];
+  if (p.gcPmEmail)      picks.push({ label: 'GC PM',       email: p.gcPmEmail });
+  if (p.gcForemanEmail) picks.push({ label: 'GC Foreman',  email: p.gcForemanEmail });
+  if (p.email)          picks.push({ label: 'Contractor',  email: p.email });
+  const chipsWrap = document.getElementById('fu-quickpicks');
+  chipsWrap.innerHTML = picks.length
+    ? picks.map(pk => `<button type="button" class="fu-chip" onclick="document.getElementById('fu-to').value='${pk.email}'">${pk.label}: ${pk.email}</button>`).join('')
+    : '<span class="fu-chip-empty">No saved contact emails on this project yet — type an address below.</span>';
+
+  document.getElementById('followup-overlay').classList.add('open');
+}
+
+function closeFollowUpPopup() {
+  document.getElementById('followup-overlay').classList.remove('open');
+}
+
+function sendFollowUpEmail() {
+  const to = document.getElementById('fu-to').value.trim();
+  const subject = document.getElementById('fu-subject').value;
+  const body = document.getElementById('fu-body').value;
+  if (!to) { alert('Enter a recipient email first.'); return; }
+  window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  closeFollowUpPopup();
 }
 
 // ════════════════════════════════════════════════════════
