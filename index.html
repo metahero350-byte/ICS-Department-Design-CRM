@@ -770,6 +770,10 @@
   .drag-handle:hover { color: var(--text-dim); }
   .rfi-pending-row.dragging, .doclink-row.dragging { opacity: 0.4; }
   .rfi-pending-row.drag-over-row, .doclink-row.drag-over-row { box-shadow: 0 -2px 0 var(--ics-red) inset; }
+  .rfi-pending-attach { flex-shrink: 0; border: 1px dashed var(--border); border-radius: 2px; padding: 3px 8px; font-size: 10px; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s; }
+  .rfi-pending-attach.drag-over { border-color: var(--ics-red); color: var(--ics-red); }
+  .rfi-pending-row .doclink-open-btn { padding: 3px 8px; font-size: 12px; }
+  .rfi-pending-row .doclink-replace { flex-shrink: 0; }
 
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
@@ -3371,6 +3375,15 @@ function renderPendingRfis(p) {
       <input type="text" class="rfi-pending-label" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="RFI description..." onchange="updatePendingRfi('${item.id}','label',this.value)">
       <input type="date" class="rfi-pending-date" value="${item.sentDate||''}" onchange="updatePendingRfi('${item.id}','sentDate',this.value)">
       <span class="rfi-pending-days ${overdueClass}">${daysLabel}</span>
+      ${item.url
+        ? `<button type="button" class="doclink-open-btn" onclick="window.open('${item.url}','_blank','noopener')" title="Open attached RFI form">&#128206;</button>
+           <label class="doclink-replace" for="rfip-file-${item.id}">Replace</label>`
+        : `<div class="rfi-pending-attach" id="rfip-zone-${item.id}"
+             ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="event.stopPropagation();rfiPendingDrop(event,'${item.id}')"
+             onclick="document.getElementById('rfip-file-${item.id}').click()" title="Attach the sent RFI form">&#128206; Attach</div>`}
+      <input type="file" id="rfip-file-${item.id}" class="doclink-file-input" onchange="rfiPendingFileSelected('${item.id}',this)">
       <button class="followup-btn" title="Compose follow-up email" onclick="openFollowUpPopup('rfi','${item.id}')">&#9993;</button>
       <button class="task-del" data-perm="delete" onclick="deletePendingRfi('${item.id}')">✕</button>`;
     wrap.appendChild(row);
@@ -3402,6 +3415,46 @@ function deletePendingRfi(id) {
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
   p.rfiPending = (p.rfiPending||[]).filter(x => x.id !== id);
   renderPendingRfis(p);
+}
+
+function rfiPendingDrop(e, id) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) uploadRfiPendingFile(id, file);
+}
+
+function rfiPendingFileSelected(id, input) {
+  const file = input.files && input.files[0];
+  if (file) uploadRfiPendingFile(id, file);
+  input.value = '';
+}
+
+async function uploadRfiPendingFile(id, file) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const zone = document.getElementById('rfip-zone-'+id);
+  if (zone) zone.textContent = 'Uploading… 0%';
+  try {
+    const path = `project-docs/${p.id}/rfipending_${id}_${Date.now()}_${file.name}`;
+    const ref  = storage.ref().child(path);
+    const task = ref.put(file);
+    await new Promise((resolve, reject) => {
+      task.on('state_changed',
+        snap => { if (zone) zone.textContent = `Uploading… ${Math.round(snap.bytesTransferred / snap.totalBytes * 100)}%`; },
+        reject,
+        resolve
+      );
+    });
+    const url = await ref.getDownloadURL();
+    const item = (p.rfiPending||[]).find(x => x.id === id);
+    if (item) item.url = url;
+    persistData(p);
+    renderPendingRfis(p);
+  } catch(err) {
+    console.warn('ICS CRM: RFI-Pending upload failed', err);
+    alert('Upload failed: ' + (err.message || err.code || err));
+    renderPendingRfis(p);
+  }
 }
 
 // ════════════════════════════════════════════════════════
