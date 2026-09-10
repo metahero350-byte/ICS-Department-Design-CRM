@@ -756,6 +756,16 @@
   .followup-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1; }
   .followup-btn:hover { color: var(--green); }
 
+  .rfi-pending-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: var(--surface2); border: 1px solid var(--border); margin-bottom: 4px; border-radius: 2px; }
+  .rfi-pending-row.completed { opacity: 0.55; }
+  .rfi-pending-row.completed .rfi-pending-label { text-decoration: line-through; }
+  .rfi-pending-row input[type="checkbox"] { accent-color: var(--green); flex-shrink: 0; }
+  .rfi-pending-label { flex: 1; background: transparent; border: none; color: var(--text); font-size: 12px; font-family: inherit; outline: none; padding: 2px 4px; }
+  .rfi-pending-label:focus { background: var(--surface3); border-radius: 2px; }
+  .rfi-pending-date { background: var(--surface3); border: 1px solid var(--border); color: var(--text); font-size: 11px; font-family: inherit; padding: 3px 4px; border-radius: 2px; outline: none; flex-shrink: 0; }
+  .rfi-pending-days { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; min-width: 68px; text-align: right; }
+  .rfi-pending-days.overdue { color: var(--ics-red); }
+
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
   .combobox-input-row { display: flex; gap: 0; }
@@ -1757,7 +1767,15 @@
         </div>
 
         <div class="section-block">
-          <div class="section-block-title collapsible-title" id="hdr-sec-rfis" onclick="toggleSection('sec-rfis')">RFI's<span class="chevron">&#9662;</span></div>
+          <div class="section-block-title collapsible-title" id="hdr-sec-rfipending" onclick="toggleSection('sec-rfipending')">RFI-Pending<span class="chevron">&#9662;</span></div>
+          <div id="sec-rfipending" class="jc-lockable">
+          <div id="rfi-pending-list"></div>
+          <button class="add-sub-btn" onclick="addPendingRfi()">+ Add Pending RFI</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-title collapsible-title" id="hdr-sec-rfis" onclick="toggleSection('sec-rfis')">RFI-Response<span class="chevron">&#9662;</span></div>
           <div id="sec-rfis">
           <div class="doclinks-grid" id="rfis-list"></div>
           <button class="add-sub-btn" data-perm="add-docs" onclick="addDocListItem('rfis')">+ Add RFI</button>
@@ -2776,7 +2794,7 @@ function createProject() {
     gcForemanName:'', gcForemanEmail:'', gcForemanPhone:'',
     docLinks: { plans:'', specs:'', addendums:'', jobNotice:'', schedule:'', estimate:'', proposal:'', takeoffs:'' },
     systemPlans: [],
-    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [], teamNotes: [], pendingDocAlerts: [],
+    plansList: [], rfis: [], changeOrders: [], approvedProductData: [], closeouts: [], bidDocs: [], specsList: [], addendumsList: [], teamNotes: [], pendingDocAlerts: [], rfiPending: [],
     tasks: [],
     submittals: [
       { id:uid(), type:'Product Data', system:'', submittalDate:'', status:'Pending', approvedDate:'', notes:'' },
@@ -2799,7 +2817,7 @@ function createProject() {
 // COLLAPSIBLE JOB CARD SECTIONS
 // ════════════════════════════════════════════════════════
 const JC_SECTIONS_DEFAULT_CLOSED = ['sec-contractor','sec-gc','sec-projinfo'];
-const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-biddocs','sec-addendums','sec-specs','sec-plans','sec-apd','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes','sec-teamnotes'];
+const JC_SECTIONS_DEFAULT_OPEN   = ['sec-whatsnext','sec-submittals','sec-doclinks','sec-biddocs','sec-addendums','sec-specs','sec-plans','sec-apd','sec-rfipending','sec-rfis','sec-cos','sec-closeouts','sec-sysplans','sec-notes','sec-teamnotes'];
 
 function setSectionState(id, collapsed) {
   const content = document.getElementById(id);
@@ -2841,7 +2859,7 @@ function openProject(id) {
   document.getElementById('f-designer').value        = p.designer       || '';
   document.getElementById('f-spec-section').value    = p.specSection    || '';
   document.getElementById('f-systems').value         = (p.systems !== undefined && p.systems !== '') ? p.systems : (p.scope || '');
-  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p); renderTeamNotes(p);
+  renderTasks(p); renderSubmittals(p); renderNotes(p); renderDocLinks(p); renderSystemPlans(p); renderTeamNotes(p); renderPendingRfis(p);
   renderDocList(p, 'plans'); renderDocList(p, 'rfis'); renderDocList(p, 'changeOrders'); renderDocList(p, 'approvedProductData'); renderDocList(p, 'closeouts'); renderDocList(p, 'bidDocs'); renderDocList(p, 'specs'); renderDocList(p, 'addendums');
   document.getElementById('jc-project-title').textContent = p.name || 'Unnamed Project';
   document.getElementById('save-status').textContent = '';
@@ -3207,7 +3225,7 @@ function renderSubmittals(p) {
       <td data-label="Approved/Returned"><input type="date" value="${s.approvedDate||''}" onchange="updateSubmittal('${s.id}','approvedDate',this.value)"></td>
       <td data-label="Notes"><input type="text" value="${s.notes||''}" placeholder="Notes..." onchange="updateSubmittal('${s.id}','notes',this.value)"></td>
       <td data-label="" class="submittal-actions-cell">
-        <button class="followup-btn" title="Compose follow-up email" onclick="openFollowUpPopup('${s.id}')">&#9993;</button>
+        <button class="followup-btn" title="Compose follow-up email" onclick="openFollowUpPopup('submittal','${s.id}')">&#9993;</button>
         <button class="task-del" data-perm="delete" onclick="deleteSubmittal('${s.id}')">✕</button>
       </td>`;
     tbody.appendChild(tr);
@@ -3241,27 +3259,40 @@ function deleteSubmittal(sid) {
 // their own mail client. Recipient is manual/quick-pick, not
 // auto-filled, per how this was scoped.
 // ════════════════════════════════════════════════════════
-function openFollowUpPopup(sid) {
+function openFollowUpPopup(sourceType, id) {
+  // Backward-compat: original signature was openFollowUpPopup(submittalId).
+  if (id === undefined) { id = sourceType; sourceType = 'submittal'; }
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
-  const s = (p.submittals||[]).find(x => x.id === sid); if (!s) return;
 
-  const od = isOverdue(s.submittalDate, s.status);
-  let daysOverdue = 0;
-  if (od && s.submittalDate) {
-    daysOverdue = Math.floor((new Date(today()) - new Date(s.submittalDate)) / 86400000);
+  let subject, body;
+
+  if (sourceType === 'submittal') {
+    const s = (p.submittals||[]).find(x => x.id === id); if (!s) return;
+    const od = isOverdue(s.submittalDate, s.status);
+    let daysOverdue = 0;
+    if (od && s.submittalDate) daysOverdue = Math.floor((new Date(today()) - new Date(s.submittalDate)) / 86400000);
+    const dataType = s.type || 'submittal';
+    const systemType = s.system || 'the system';
+    const projectName = p.name || 'the project';
+    subject = `Follow-up: ${dataType} — ${systemType} (${projectName})`;
+    body = `Hi,\n\nFollowing up on the ${dataType} for ${systemType} on ${projectName}`;
+    body += s.submittalDate ? `, submitted ${fmtDate(s.submittalDate)}.` : '.';
+    if (od && daysOverdue > 0) body += ` It's been ${daysOverdue} day${daysOverdue===1?'':'s'} without a response.`;
+    body += `\n\nCould you please provide a status update at your earliest convenience?\n\nThank you,\n`;
+  } else if (sourceType === 'rfi') {
+    const r = (p.rfiPending||[]).find(x => x.id === id); if (!r) return;
+    const projectName = p.name || 'the project';
+    const label = r.label || 'RFI';
+    let daysPending = 0;
+    if (r.sentDate) daysPending = Math.floor((new Date(today()) - new Date(r.sentDate)) / 86400000);
+    subject = `Follow-up: ${label} (${projectName})`;
+    body = `Hi,\n\nFollowing up on ${label} for ${projectName}`;
+    body += r.sentDate ? `, sent ${fmtDate(r.sentDate)}.` : '.';
+    if (daysPending > 0) body += ` It's been ${daysPending} day${daysPending===1?'':'s'} without a response.`;
+    body += `\n\nCould you please provide a response at your earliest convenience?\n\nThank you,\n`;
+  } else {
+    return;
   }
-
-  const dataType = s.type || 'submittal';
-  const systemType = s.system || 'the system';
-  const projectName = p.name || 'the project';
-
-  const subject = `Follow-up: ${dataType} — ${systemType} (${projectName})`;
-  let body = `Hi,\n\nFollowing up on the ${dataType} for ${systemType} on ${projectName}`;
-  body += s.submittalDate ? `, submitted ${fmtDate(s.submittalDate)}.` : '.';
-  if (od && daysOverdue > 0) {
-    body += ` It's been ${daysOverdue} day${daysOverdue===1?'':'s'} without a response.`;
-  }
-  body += `\n\nCould you please provide a status update at your earliest convenience?\n\nThank you,\n`;
 
   document.getElementById('fu-to').value = '';
   document.getElementById('fu-subject').value = subject;
@@ -3290,6 +3321,75 @@ function sendFollowUpEmail() {
   if (!to) { alert('Enter a recipient email first.'); return; }
   window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   closeFollowUpPopup();
+}
+
+// ════════════════════════════════════════════════════════
+// RFI-PENDING — RFIs sent out, awaiting a response. Separate
+// from RFI-Response (the doc-list section renamed from the old
+// "RFI's"), which is where the actual response document lands.
+// Field edits here follow the same convention as Submittals:
+// they stay in memory and go to Firestore on the next explicit
+// Save Project, rather than auto-persisting per keystroke.
+// ════════════════════════════════════════════════════════
+function renderPendingRfis(p) {
+  const wrap = document.getElementById('rfi-pending-list');
+  if (!wrap) return;
+  const items = p.rfiPending || [];
+  wrap.innerHTML = '';
+  if (items.length === 0) {
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0;">No pending RFIs.</div>';
+    return;
+  }
+  items.forEach(item => {
+    let daysLabel = '';
+    let overdueClass = '';
+    if (!item.completed && item.sentDate) {
+      const days = Math.floor((new Date(today()) - new Date(item.sentDate)) / 86400000);
+      if (days >= 0) {
+        daysLabel = days + 'd pending';
+        if (days >= 7) overdueClass = 'overdue';
+      }
+    } else if (item.completed) {
+      daysLabel = 'Resolved';
+    }
+    const row = document.createElement('div');
+    row.className = 'rfi-pending-row' + (item.completed ? ' completed' : '');
+    row.innerHTML = `
+      <input type="checkbox" ${item.completed?'checked':''} onchange="togglePendingRfi('${item.id}')" title="Mark response received">
+      <input type="text" class="rfi-pending-label" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="RFI description..." onchange="updatePendingRfi('${item.id}','label',this.value)">
+      <input type="date" class="rfi-pending-date" value="${item.sentDate||''}" onchange="updatePendingRfi('${item.id}','sentDate',this.value)">
+      <span class="rfi-pending-days ${overdueClass}">${daysLabel}</span>
+      <button class="followup-btn" title="Compose follow-up email" onclick="openFollowUpPopup('rfi','${item.id}')">&#9993;</button>
+      <button class="task-del" data-perm="delete" onclick="deletePendingRfi('${item.id}')">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addPendingRfi() {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.rfiPending = p.rfiPending || [];
+  p.rfiPending.push({ id: uid(), label: '', sentDate: today(), completed: false });
+  renderPendingRfis(p);
+}
+
+function updatePendingRfi(id, field, val) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const item = (p.rfiPending||[]).find(x => x.id === id);
+  if (item) item[field] = val;
+  renderPendingRfis(p);
+}
+
+function togglePendingRfi(id) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const item = (p.rfiPending||[]).find(x => x.id === id);
+  if (item) item.completed = !item.completed;
+  renderPendingRfis(p);
+}
+
+function deletePendingRfi(id) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  p.rfiPending = (p.rfiPending||[]).filter(x => x.id !== id);
+  renderPendingRfis(p);
 }
 
 // ════════════════════════════════════════════════════════
