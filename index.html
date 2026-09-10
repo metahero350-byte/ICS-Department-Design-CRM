@@ -766,6 +766,11 @@
   .rfi-pending-days { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; min-width: 68px; text-align: right; }
   .rfi-pending-days.overdue { color: var(--ics-red); }
 
+  .drag-handle { cursor: grab; color: var(--text-muted); font-size: 12px; flex-shrink: 0; user-select: none; padding: 0 2px; }
+  .drag-handle:hover { color: var(--text-dim); }
+  .rfi-pending-row.dragging, .doclink-row.dragging { opacity: 0.4; }
+  .rfi-pending-row.drag-over-row, .doclink-row.drag-over-row { box-shadow: 0 -2px 0 var(--ics-red) inset; }
+
   /* ─── COMBOBOX ─── */
   .combobox-wrap { position: relative; }
   .combobox-input-row { display: flex; gap: 0; }
@@ -3354,7 +3359,14 @@ function renderPendingRfis(p) {
     }
     const row = document.createElement('div');
     row.className = 'rfi-pending-row' + (item.completed ? ' completed' : '');
+    row.draggable = true;
+    row.ondragstart = e => rowDragStart(e, 'rfiPending', item.id);
+    row.ondragend = e => rowDragEnd(e);
+    row.ondragover = e => rowDragOver(e);
+    row.ondragleave = e => rowDragLeave(e);
+    row.ondrop = e => rowDrop(e, 'rfiPending', item.id);
     row.innerHTML = `
+      <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
       <input type="checkbox" ${item.completed?'checked':''} onchange="togglePendingRfi('${item.id}')" title="Mark response received">
       <input type="text" class="rfi-pending-label" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="RFI description..." onchange="updatePendingRfi('${item.id}','label',this.value)">
       <input type="date" class="rfi-pending-date" value="${item.sentDate||''}" onchange="updatePendingRfi('${item.id}','sentDate',this.value)">
@@ -3390,6 +3402,65 @@ function deletePendingRfi(id) {
   const p = projects.find(x => x.id === activeProjectId); if (!p) return;
   p.rfiPending = (p.rfiPending||[]).filter(x => x.id !== id);
   renderPendingRfis(p);
+}
+
+// ════════════════════════════════════════════════════════
+// DRAG-TO-REORDER — shared by RFI-Pending and RFI-Response.
+// Uses a type string ('rfiPending' / 'rfiResponse') rather than
+// a raw array reference, since references can't be passed through
+// HTML attribute strings — the live array is looked up fresh at
+// drop time instead. Scoped intentionally to just these two lists;
+// every other doc-list section keeps its existing add-order.
+// ════════════════════════════════════════════════════════
+let dragSource = { type: null, id: null };
+
+function getReorderableArray(type) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return null;
+  if (type === 'rfiPending') return p.rfiPending || [];
+  if (type === 'rfiResponse') return p.rfis || [];
+  return null;
+}
+
+function rowDragStart(e, type, id) {
+  // A real OS file drag (e.g. onto the upload dropzone) never reaches
+  // here since those handlers stop propagation — this only fires for
+  // an actual row being picked up to reorder.
+  dragSource = { type, id };
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+
+function rowDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over-row').forEach(el => el.classList.remove('drag-over-row'));
+}
+
+function rowDragOver(e) {
+  if (!dragSource.type) return; // not a row-reorder drag (e.g. a file from the OS)
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over-row');
+}
+
+function rowDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over-row');
+}
+
+function rowDrop(e, type, targetId) {
+  if (dragSource.type !== type) { dragSource = { type: null, id: null }; return; }
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over-row');
+  if (dragSource.id === targetId) { dragSource = { type: null, id: null }; return; }
+  const arr = getReorderableArray(type);
+  if (!arr) { dragSource = { type: null, id: null }; return; }
+  const fromIdx = arr.findIndex(x => x.id === dragSource.id);
+  const toIdx = arr.findIndex(x => x.id === targetId);
+  dragSource = { type: null, id: null };
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [moved] = arr.splice(fromIdx, 1);
+  arr.splice(toIdx, 0, moved);
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  if (type === 'rfiPending') renderPendingRfis(p);
+  else if (type === 'rfiResponse') renderDocList(p, 'rfis');
 }
 
 // ════════════════════════════════════════════════════════
@@ -4536,11 +4607,21 @@ function renderDocList(p, listKey) {
   wrap.innerHTML = '';
   const editable = canEdit();
   const addable = canAddDocs();
+  const reorderable = (listKey === 'rfis');
   p[cfg.field].forEach(item => {
     const row = document.createElement('div');
     row.className = 'doclink-row';
+    if (reorderable) {
+      row.draggable = true;
+      row.ondragstart = e => rowDragStart(e, 'rfiResponse', item.id);
+      row.ondragend = e => rowDragEnd(e);
+      row.ondragover = e => rowDragOver(e);
+      row.ondragleave = e => rowDragLeave(e);
+      row.ondrop = e => rowDrop(e, 'rfiResponse', item.id);
+    }
     const zoneId = `${cfg.zonePrefix}-zone-${item.id}`;
     const fileId = `${cfg.zonePrefix}-file-${item.id}`;
+    const dragHandleHTML = reorderable ? `<span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>` : '';
     const labelHTML = (editable || (addable && !item.url))
       ? `<input type="text" class="sysplan-label-input" value="${(item.label||'').replace(/"/g,'&quot;')}" placeholder="Label..." onchange="updateDocListLabel('${listKey}','${item.id}', this.value)">`
       : `<span class="sysplan-label-readonly">${item.label || '(untitled)'}</span>`;
@@ -4550,14 +4631,15 @@ function renderDocList(p, listKey) {
         + (editable ? `<label class="doclink-replace" for="${fileId}">Replace</label>` : '');
     } else if (addable) {
       actionHTML = `<div class="doclink-dropzone" id="${zoneId}"
-           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
-           ondrop="docListDrop(event,'${listKey}','${item.id}')"
+           ondrop="event.stopPropagation();docListDrop(event,'${listKey}','${item.id}')"
            onclick="document.getElementById('${fileId}').click()">Drop file or click to upload</div>`;
     } else {
       actionHTML = `<span class="doclink-empty-note">— not uploaded —</span>`;
     }
     row.innerHTML = `
+      ${dragHandleHTML}
       ${labelHTML}
       ${actionHTML}
       <input type="file" id="${fileId}" class="doclink-file-input" onchange="docListFileSelected('${listKey}','${item.id}',this)">
