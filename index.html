@@ -4470,7 +4470,8 @@ function renderDocLinks(p) {
       row.innerHTML = `<label>${f.label}</label>
          <button type="button" class="doclink-open-btn" onclick="window.open('${url}','_blank','noopener')">&#8599; Open</button>`
         + (editable ? `<label class="doclink-replace" for="doc-file-${f.key}">Replace</label>
-         <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">` : '');
+         <input type="file" id="doc-file-${f.key}" class="doclink-file-input" onchange="docFileSelected('${f.key}',this)">` : '')
+        + `<button type="button" class="sysplan-del" data-perm="delete" onclick="removeDocLink('${f.key}')" title="Remove">&#10005;</button>`;
     } else if (addable) {
       row.innerHTML = `<label>${f.label}</label>
          <div class="doclink-dropzone" id="doclink-zone-${f.key}"
@@ -4497,6 +4498,16 @@ function docFileSelected(key, input) {
   const file = input.files && input.files[0];
   if (file) uploadDocFile(key, file);
   input.value = '';
+}
+
+function removeDocLink(key) {
+  const p = projects.find(x => x.id === activeProjectId); if (!p) return;
+  const label = (DOC_LINK_FIELDS.find(f => f.key === key) || {}).label || 'this document';
+  if (!confirm(`Remove ${label}? This clears the link — you'll need to re-upload if you need it again.`)) return;
+  p.docLinks = p.docLinks || {};
+  p.docLinks[key] = '';
+  persistData(p);
+  renderDocLinks(p);
 }
 
 async function uploadDocFile(key, file) {
